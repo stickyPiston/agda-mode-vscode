@@ -15,12 +15,12 @@
   "contributes": {
     "commands": [
       {
-        "command": "agda-mode.openPanel",
+        "command": "agda-mode.open-panel",
         "title": "Open the Webview panel"
       },
       {
-        "command": "agda-mode.sendMessage",
-        "title": "Send a message to the Webview panel"
+        "command": "agda-mode.load-file",
+        "title": "Load an agda file"
       }
     ]
   },

@@ -9,9 +9,6 @@ open import Agda.Builtin.List
 open import Agda.Builtin.Maybe
 open import Communication
 
-the : (A : Set) → A → A
-the _ t = t
-
 postulate
     Command : Set
     extension-context vscode-api process-api : Set
@@ -30,7 +27,7 @@ postulate
     postMessage : Panel → IO null
     onMessage : Panel → extension-context → (JSON → IO ⊤) → IO ⊤
 
-{-# COMPILE JS register-command = vscode => name => action => cont => { cont(vscode.commands.registerCommand(name, () => { action(_ => {}) })) } #-}
+{-# COMPILE JS register-command = vscode => name => action => cont => { cont(vscode.commands.registerCommand(name, () => { console.log(action); action(_ => {}) })) } #-}
 {-# COMPILE JS createWebviewPanel = vscode => cont => cont(vscode.window.createWebviewPanel("window", "window", vscode.ViewColumn.One, { enableScripts: true }))  #-}
 {-# COMPILE JS push-subscription = cmd => context => cont => { context.subscriptions.push(cmd); cont(null); } #-}
 {-# COMPILE JS log = _ => thing => cont => { console.log(String(thing)); cont(null) } #-}
@@ -94,8 +91,7 @@ postulate enqueue : ∀ {A} → queue-ref A → A → IO ⊤
 {-# COMPILE JS enqueue = _ => queueRef => a => cont => { queueRef.val.push(a); cont(a => a["tt"]()) } #-}
 
 postulate dequeue : ∀ {A} → queue-ref A → IO (Maybe A)
-{-# COMPILE JS dequeue = _ => queueRef => cont => 
-    cont(b => queueRef.val.length === 0 ? b["nothing"]() : b["just"](queueRef.val.shift())) #-}
+{-# COMPILE JS dequeue = _ => queueRef => cont => { const a = queueRef.val.shift(); cont(b => b["just"](a)); } #-}
 
 postulate empty? : ∀ {A} → queue-ref A → IO boolean
 {-# COMPILE JS empty? = _ => queueRef => cont => { cont(queueRef.val.length === 0) } #-}
@@ -103,23 +99,9 @@ postulate empty? : ∀ {A} → queue-ref A → IO boolean
 record Cmd (msg : Set) : Set where field
     actions : List ((dispatch : msg → IO ⊤) → IO ⊤)
 
--- This is a separate function because of a bug in JS backend
--- We cannot put update-and-process-commands in a where block under interact
--- because it will overwrite the code for lambda blocks, and break itself.
-{-# NON_TERMINATING #-}
-update-and-process-commands : (model msg : Set) → (update : model → msg → model × Cmd msg) → queue-ref ((msg → IO ⊤) → IO ⊤) → Ref model → msg → IO ⊤
-update-and-process-commands model msgₜ update cmd-queue model-ref msg = do
-    current-model ← get model-ref
-    case (update current-model msg) of λ where
-        (new-model , record { actions = actions }) → do
-            forM_ actions $ enqueue cmd-queue
-            set model-ref new-model
-            dequeue cmd-queue >>= λ where
-                (just new-cmd) → new-cmd (update-and-process-commands model msgₜ update cmd-queue model-ref)
-                nothing → pure tt
-
 -- Execute the TEA application
 -- beware: gonna be ugly agda code
+{-# NON_TERMINATING #-}
 interact :
     ∀ {model msg : Set}
     → (init : model × Cmd msg)
@@ -127,17 +109,28 @@ interact :
     → (update : model → msg → model × Cmd msg)
     → System
     → IO ⊤
-interact {model = modelₜ} {msg = msgₜ} (init-model , init-cmds) commands update record { vscode = vscode ; context = context } = do
+interact {model = model} {msg = msg} (init-model , init-cmds) commands update record { vscode = vscode ; context = context } = do
     model ← new init-model
-    cmd-queue ← new-queue-ref { (msgₜ → IO ⊤) → IO ⊤ }
+    cmd-queue ← new-queue-ref { (msg → IO ⊤) → IO ⊤ }
 
     -- Register commands
     forM_ commands λ where
         (command name msg) → do
-            registered-cmd ← register-command vscode name (update-and-process-commands modelₜ msgₜ update cmd-queue model msg)
+            registered-cmd ← register-command vscode name (update-and-process-commands cmd-queue model msg)
             push-subscription registered-cmd context
             pure tt
-    
+    where
+        update-and-process-commands : queue-ref ((msg → IO ⊤) → IO ⊤) → Ref model → msg → IO ⊤
+        update-and-process-commands cmd-queue model-ref msg = do
+            current-model ← get model-ref
+            case (update current-model msg) of λ where
+                (new-model , record { actions = actions }) → do
+                    forM_ actions $ enqueue cmd-queue
+                    set model-ref new-model
+                    dequeue cmd-queue >>= λ where
+                        (just new-cmd) → new-cmd (update-and-process-commands cmd-queue model-ref)
+                        nothing → pure tt
+
 record Model : Set where field
     panel : Maybe Panel
     proc : Process
@@ -212,6 +205,9 @@ update record { process = process ; vscode = vscode ; context = context } model 
         trace (case wmsg of λ where
             a → "Received a!"
             b → "Received b!") (model , none)
+
+the : (A : Set) → A → A
+the _ t = t
 
 activate : System → IO ⊤
 activate sys = do

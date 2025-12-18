@@ -11,7 +11,7 @@ open import Agda.Builtin.Equality
 data _×_ (A B : Set) : Set where
     _,_ : A → B → A × B
 
-{-# COMPILE JS _×_ = ([a, b], v) => v["_,_"](a, b) #-}
+{-# COMPILE JS _×_ = (([a, b], v) => v["_,_"](a, b)) #-}
 {-# COMPILE JS _,_ = a => b => [a, b] #-}
 
 -- Using the costructors of the JSON data type, we can encode
@@ -45,8 +45,8 @@ data JSON : Set where
 
 -- Now we can define any Agda data type we want as the
 -- message data type...
-data Msg : Set where
-    a b : Msg
+data WebviewMsg : Set where
+    a b : WebviewMsg
 
 -- ...as long as we define encode and decode functions for it.
 -- The decode function can make use of plain pattern matching.
@@ -57,7 +57,7 @@ record Cloneable (A : Set) : Set where field
 open Cloneable ⦃ ... ⦄ public
 
 instance
-    MsgCloneable : Cloneable Msg 
+    MsgCloneable : Cloneable WebviewMsg 
     MsgCloneable = record
         { encode = λ where
             a → j-array (j-string "a" ∷ [])
