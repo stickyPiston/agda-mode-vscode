@@ -67,7 +67,10 @@ postulate read : Process → IO String
 {-# COMPILE JS read = proc => cont => cont(proc.stdout.read()) #-}
 
 postulate on-data : Process → (String → IO ⊤) → IO ⊤
-{-# COMPILE JS on-data = proc => handler => cont => { proc.stdout.on("data", data => { handler(data)(() => {}) }) ; cont(a => a["tt"]()) } #-}
+{-# COMPILE JS on-data = proc => handler => cont => {
+    proc.stdout.on("data", data => { handler(data.toString())(() => {}) });
+    cont(a => a["tt"]())
+} #-}
 
 -- This should prolly be IO
 postulate current-text-documents : vscode-api → List text-document
@@ -131,6 +134,9 @@ interact {model = modelₜ} {msg = msgₜ} (init-model , init-cmds) commands upd
     model ← new init-model
     cmd-queue ← new-queue-ref { (msgₜ → IO ⊤) → IO ⊤ }
 
+    forM_ (Cmd.actions init-cmds) λ action →
+        action (update-and-process-commands modelₜ msgₜ update cmd-queue model)
+
     -- Register commands
     forM_ commands λ where
         (command name msg) → do
@@ -149,7 +155,7 @@ data Msg : Set where
     panel-opened : Panel → Msg
     
     -- Agda messages
-    status-update : Msg
+    agda-update : JSON → Msg
 
     -- Webview messages
     received-webview : WebviewMsg → Msg
@@ -160,17 +166,14 @@ none = record { actions = [] }
 mk-Cmd : ∀ {msg} → ((msg → IO ⊤) → IO ⊤) → Cmd msg
 mk-Cmd cmd = record { actions = [ cmd ] }
 
-init : Process → Model × Cmd Msg
-init proc = record { panel = nothing ; proc = proc } , none
-
 open-panel-cmd : vscode-api → extension-context → (Panel → Msg) → (WebviewMsg → Msg) → Cmd Msg
 open-panel-cmd vscode context panel-msg webview-msg = mk-Cmd λ dispatch → do
     panel ← createWebviewPanel vscode
-    _ ← dispatch (panel-msg panel)
-    _ ← setHtml ("<html><body><main></main><script type=\"module\" src="
+    dispatch (panel-msg panel)
+    setHtml ("<html><body><main></main><script type=\"module\" src="
         ++ toWebviewUri panel (joinPath vscode (extensionUri context ∷ "out" ∷ "jAgda.Webview.mjs" ∷ []))
         ++ "></script></body></html>") panel
-    _ ← onMessage panel context λ json → case (decode json) of λ where
+    onMessage panel context λ json → case (decode json) of λ where
         (just wmsg) → dispatch (webview-msg wmsg)
         nothing     → do
             _ ← log "Could not parse message"
@@ -181,18 +184,29 @@ send-over-stdin-cmd : Process → Cmd Msg
 send-over-stdin-cmd proc =
     let path = "/Users/terra/Desktop/code/agda-mode-agda/modules/agda-mode/src/Extension.agda"
      in mk-Cmd λ dispatch → do
-        _ ← write proc $ "IOTCM " ++ path ++ " NonInteractive Direct (Cmd_load " ++ path ++ " [])"
+        write proc $ "IOTCM \"" ++ path ++ "\" NonInteractive Direct (Cmd_load \"" ++ path ++ "\" [])\n"
         pure tt
 
 postulate parse-json : String → Maybe JSON
-{-# COMPILE JS parse-json = input => { try { return a => a["just"](JSON.parse(input)); } catch (_e) { return a => a["nothing"](); } } #-}
+{-# COMPILE JS parse-json = input => {
+    try {
+        const json = JSON.parse(input);
+        console.log(json);
+    } catch (_e) {
+        console.log(input, _e);
+    }
+    return a => a["nothing"]();
+} #-}
 
-read-stdin-cmd : Process → (JSON → Msg) → Cmd Msg
-read-stdin-cmd proc stdin-msg = mk-Cmd λ dispatch →
-    on-data proc λ d → do
+read-stdout-cmd : Process → (JSON → Msg) → Cmd Msg
+read-stdout-cmd proc stdin-msg = mk-Cmd λ dispatch →
+    on-data proc λ d →
         case parse-json d of λ where
-            (just json) → dispatch (stdin-msg json)
+            (just json) → trace json $ dispatch (stdin-msg json)
             nothing     → pure tt
+
+init : Process → Model × Cmd Msg
+init proc = record { panel = nothing ; proc = proc } , read-stdout-cmd proc agda-update
 
 commands : List (vsc-cmd Msg)
 commands =
@@ -203,7 +217,7 @@ commands =
 update : System → Model → Msg → Model × Cmd Msg
 update record { process = process ; vscode = vscode ; context = context } model = λ where
     load-file-msg → model , send-over-stdin-cmd (Model.proc model)
-    status-update → model , none
+    (agda-update json) → trace json $ model , none
 
     open-webview-msg → model , open-panel-cmd vscode context panel-opened received-webview
     (panel-opened panel) → record model { panel = just panel } , none
