@@ -1,6 +1,6 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://github.com/stickyPiston/agda-mode-vscode/blob/main/schemas/interaction-response.schema.json",
+    "$id": "https://raw.githubusercontent.com/stickyPiston/agda-mode-vscode/refs/heads/main/schemas/interaction-response.schema.json",
     "title": "interaction response",
     "description": "A response returned by Agda's --interaction-json command",
     "oneOf": [

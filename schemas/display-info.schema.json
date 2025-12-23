@@ -1,6 +1,6 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://github.com/stickyPiston/agda-mode-vscode/blob/main/schemas/display-info.schema.json",
+    "$id": "https://raw.githubusercontent.com/stickyPiston/agda-mode-vscode/refs/heads/main/schemas/display-info.schema.json",
     "title": "Display info response",
     "properties": {
         "kind": { "const": "DisplayInfo" },
