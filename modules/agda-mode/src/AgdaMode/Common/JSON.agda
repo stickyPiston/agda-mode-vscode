@@ -1,11 +1,12 @@
-module Communication where
+module AgdaMode.Common.JSON where
 
 open import Iepje.Internal.JS.Language.PrimitiveTypes
+
 open import Prelude.Sigma using (_×_)
 open import Prelude.Maybe
+open import Prelude.Nat
 
 open import Agda.Builtin.List
-open import Agda.Builtin.Nat
 open import Agda.Builtin.Equality
 
 -- Using the costructors of the JSON data type, we can encode
@@ -37,30 +38,9 @@ data JSON : Set where
 {-# COMPILE JS j-object = kvs => /* Dual of Object.entries(...) */
     kvs.reduce((acc, [k, v]) => ({ ...acc, [k]: v }), {}) #-}
 
--- Now we can define any Agda data type we want as the
--- message data type...
-data WebviewMsg : Set where
-    a b : WebviewMsg
-
--- ...as long as we define encode and decode functions for it.
--- The decode function can make use of plain pattern matching.
+-- 
 record Cloneable (A : Set) : Set where field
     encode : A → JSON 
     decode : JSON → Maybe A
     encode-decode-dual : ∀ a → decode (encode a) ≡ just a
 open Cloneable ⦃ ... ⦄ public
-
-instance
-    MsgCloneable : Cloneable WebviewMsg 
-    MsgCloneable = record
-        { encode = λ where
-            a → j-array (j-string "a" ∷ [])
-            b → j-array (j-string "b" ∷ [])
-        ; decode = λ where
-            (j-array (j-string "a" ∷ [])) → just a
-            (j-array (j-string "b" ∷ [])) → just b
-            _ → nothing
-        ; encode-decode-dual = λ where
-            a → refl
-            b → refl
-        }

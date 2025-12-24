@@ -6,6 +6,7 @@ open import Prelude.Sigma
 open import Prelude.Nat using (ℕ ; suc)
 open import Prelude.Maybe
 open import Iepje.Internal.Utils using (case_of_)
+open import Agda.Builtin.List using (List)
 
 data Vec {ℓ : Level} (A : Set ℓ) : ℕ → Set ℓ where
     [] : Vec A 0
@@ -23,3 +24,6 @@ map-maybe f [] = 0 , []
 map-maybe f (x ∷ xs) with map-maybe f xs | f x
 ... | m , xs' | (just x') = suc m , (x' ∷ xs')
 ... | m , xs' | nothing   = m , xs'
+
+postulate to-list : {A : Set} {n : ℕ} → Vec A n → List A
+{-# COMPILE JS to-list = _ => _ => as => as #-}

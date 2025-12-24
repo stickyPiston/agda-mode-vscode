@@ -26,8 +26,8 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run build",
-    "build:webview": "cd modules/agda-mode && agda --js --js-es6 --compile-dir=../../out --library-file=../../libraries --no-default-libraries src/Webview.agda",
-    "build:extension": "cd modules/agda-mode && agda --js --js-es6 --compile-dir=../../out --library-file=../../libraries --no-default-libraries src/Extension.agda",
+    "build:webview": "cd modules/agda-mode && agda --js --js-es6 --compile-dir=../../out --library-file=../../libraries --no-default-libraries src/AgdaMode/Webview.agda",
+    "build:extension": "cd modules/agda-mode && agda --js --js-es6 --compile-dir=../../out --library-file=../../libraries --no-default-libraries src/AgdaMode/Extension.agda",
     "build": "npm run build:webview && npm run build:extension && cp modules/agda-mode/src/extension.js out"
   }
 }

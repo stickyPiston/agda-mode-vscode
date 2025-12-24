@@ -1,9 +1,10 @@
-module Response where
+module AgdaMode.Common.InteractionResponse where
 
 open import Prelude.Maybe
 open import Prelude.Nat hiding (_==_)
 open import Prelude.Sigma
-open import Communication hiding (a ; b)
+open import AgdaMode.Common.Communication
+open import AgdaMode.Common.JSON
 
 open import Agda.Builtin.List
 open import Agda.Builtin.String

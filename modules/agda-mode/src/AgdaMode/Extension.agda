@@ -1,9 +1,9 @@
-module Extension where
+module AgdaMode.Extension where
 
 open import Iepje.Internal.JS.Language.IO
 open import Iepje.Internal.JS.Language.PrimitiveTypes
 open import Iepje.Internal.JS.Language.MutableReferences
-open import Iepje.Prelude hiding (Maybe; just; nothing; interact; length; _>>_)
+open import Iepje.Prelude hiding (Maybe; just; nothing; interact; _>>_)
 open import Iepje.Internal.Utils using (forM_; _>>_)
 
 open import Prelude.Nat using (ℕ ; _-_)
@@ -13,8 +13,9 @@ open import Prelude.Maybe
 
 open import Agda.Builtin.List
 
-open import Communication
-open import Response
+open import AgdaMode.Common.Communication
+open import AgdaMode.Common.InteractionResponse
+open import AgdaMode.Common.JSON
 
 the : (A : Set) → A → A
 the _ t = t
@@ -34,28 +35,23 @@ postulate
     joinPath : vscode-api → List string → string
     toWebviewUri : Panel → string → string
     log : ∀{A : Set} → A → IO null
-    postMessage : Panel → IO null
+    postMessage : Panel → JSON → IO ⊤
     onMessage : Panel → extension-context → (JSON → IO ⊤) → IO ⊤
 
 {-# COMPILE JS register-command = vscode => name => action => cont => { cont(vscode.commands.registerCommand(name, () => { action(_ => {}) })) } #-}
 {-# COMPILE JS createWebviewPanel = vscode => cont => cont(vscode.window.createWebviewPanel("window", "window", vscode.ViewColumn.One, { enableScripts: true }))  #-}
 {-# COMPILE JS push-subscription = cmd => context => cont => { context.subscriptions.push(cmd); cont(null); } #-}
-{-# COMPILE JS log = _ => thing => cont => { console.log(String(thing)); cont(null) } #-}
+{-# COMPILE JS log = _ => thing => cont => { console.log(String(thing)); cont(a => a["tt"]()) } #-}
 {-# COMPILE JS extensionUri = context => context.extensionUri #-}
 {-# COMPILE JS joinPath = vscode => parts => vscode.Uri.joinPath(...parts) #-}
 {-# COMPILE JS toWebviewUri = panel => url => panel.webview.asWebviewUri(url) #-}
 {-# COMPILE JS setHtml = html => panel => cont => { panel.webview.html = html; cont(null) } #-}
-{-# COMPILE JS postMessage = panel => cont => { panel.webview.postMessage(null); cont(null) } #-}
+{-# COMPILE JS postMessage = panel => json => cont => { panel.webview.postMessage(json); cont(null) } #-}
 {-# COMPILE JS onMessage = panel => ctx => action => cont => { panel.webview.onDidReceiveMessage(msg => action(msg)(() => {}), undefined, ctx.subscriptions); cont(a => a["tt"]()); } #-}
 
 postulate trace : ∀ {A B : Set} → A → B → B
 {-# COMPILE JS trace = _ => _ => thing => ret => { console.log(thing); return ret } #-}
 
-sendMessage : Ref (Maybe Panel) → IO null
-sendMessage panel =
-    get panel >>= λ where
-        (just p) → postMessage p
-        nothing → log "No panel set"
 
 record System : Set where
     constructor system
@@ -114,6 +110,12 @@ postulate empty? : ∀ {A : Set} → queue-ref A → IO boolean
 
 record Cmd (msg : Set) : Set where field
     actions : List ((dispatch : msg → IO ⊤) → IO ⊤)
+
+postulate flat-map : {A B : Set} → (A → List B) → List A → List B
+{-# COMPILE JS flat-map = _ => _ => f => l => l.flatMap(f) #-}
+
+batch : {msg : Set} → List (Cmd msg) → Cmd msg
+batch cmds = record { actions = flat-map (λ cmd → Cmd.actions cmd) cmds }
 
 -- This is a separate function because of a bug in JS backend
 -- We cannot put update-and-process-commands in a where block under interact
@@ -181,7 +183,7 @@ open-panel-cmd vscode context panel-msg webview-msg = mk-Cmd λ dispatch → do
     panel ← createWebviewPanel vscode
     dispatch (panel-msg panel)
     setHtml ("<html><body><main></main><script type=\"module\" src="
-        ++ toWebviewUri panel (joinPath vscode (extensionUri context ∷ "out" ∷ "jAgda.Webview.mjs" ∷ []))
+        ++ toWebviewUri panel (joinPath vscode (extensionUri context ∷ "out" ∷ "jAgda.AgdaMode.Webview.mjs" ∷ []))
         ++ "></script></body></html>") panel
     onMessage panel context λ json → case (decode json) of λ where
         (just wmsg) → dispatch (webview-msg wmsg)
@@ -192,7 +194,7 @@ open-panel-cmd vscode context panel-msg webview-msg = mk-Cmd λ dispatch → do
 
 send-over-stdin-cmd : Process → Cmd Msg
 send-over-stdin-cmd proc =
-    let path = "/Users/terra/Desktop/code/agda-mode-agda/modules/agda-mode/src/Extension.agda"
+    let path = "/Users/terra/Desktop/code/agda-ffi-tests/Main.lagda.md"
      in mk-Cmd λ dispatch → do
         write proc $ "IOTCM \"" ++ path ++ "\" NonInteractive Direct (Cmd_load \"" ++ path ++ "\" [])\n"
         pure tt
@@ -242,9 +244,6 @@ postulate split : String → String → Σ[ n ∈ ℕ ] Vec.Vec String (suc n)
 postulate slice : ∀ {A : Set} {k} → Vec.Vec A k → (n : ℕ) → (m : ℕ) → Vec.Vec A (m - n)
 {-# COMPILE JS slice = _ => _ => l => n => m => l.slice(Number(n), Number(m)) #-}
 
-postulate length : ∀ {A : Set} {n} → Vec.Vec A n → ℕ
-{-# COMPILE JS length = _ => _ => l => l.length #-}
-
 vec-init : ∀ {A : Set} {n} → Vec.Vec A (suc n) → Vec.Vec A n
 vec-init {n = n} as = slice as 0 n
 
@@ -254,26 +253,33 @@ postulate last : ∀ {A : Set} {n : ℕ} → Vec.Vec A (suc n) → A
 unsnoc : ∀ {A : Set} {n : ℕ} → Vec.Vec A (suc n) → (Vec.Vec A n × A)
 unsnoc xs = vec-init xs , last xs
 
-postulate vec-map : ∀ {A B : Set} {n : ℕ} → (A → B) → Vec.Vec A n → Vec.Vec B n
-{-# COMPILE JS vec-map = _ => _ => _ => f => l => l.map(f) #-}
+sendMessage : ∀ {msg} {A} ⦃ c : Cloneable A ⦄ → Panel → A → Cmd msg
+sendMessage panel m = mk-Cmd λ _ → postMessage panel (encode m)
+
+to-Cmd : Panel → AgdaResponse → Cmd Msg
+to-Cmd panel (DisplayInfo errors _ _ _) = sendMessage panel (show-errors (length errors))
+
+open-panel : Model → vscode-api → extension-context → (Panel → Msg) → (WebviewMsg → Msg) → Cmd Msg
+open-panel record { panel = panel } = case panel of λ where
+    nothing  → open-panel-cmd
+    (just _) → λ _ _ _ _ → none
 
 update : System → Model → Msg → Model × Cmd Msg
-update record { process = process ; vscode = vscode ; context = context } model msg = case msg of λ where
-    load-file-msg → model , send-over-stdin-cmd (Model.proc model)
-    (agda-stdout-update buffer) →
+update record { process = process ; vscode = vscode ; context = context } model msg = trace msg $ case msg of λ where
+    load-file-msg → model , batch (send-over-stdin-cmd (Model.proc model) ∷ open-panel model vscode context panel-opened received-webview ∷ [])
+    (agda-stdout-update buffer) → try λ _ →
         -- TODO: Agda duplicates the computation of the rhs when pattern matching on a record like this
         let n , lines = split (Model.stdout-buffer model ++ buffer-toString buffer) "\n"
             responses , new-buffer = unsnoc lines
             k , parsed-responses = Vec.map-maybe parse-response responses
-         in trace parsed-responses $ record model { stdout-buffer = new-buffer } , none
+         in trace responses $ record model { stdout-buffer = new-buffer } , case (Model.panel model) of λ where
+            (just panel) → batch $ map (to-Cmd panel) $ Vec.to-list parsed-responses
+            nothing → none
 
-    open-webview-msg → model , open-panel-cmd vscode context panel-opened received-webview
+    open-webview-msg → model , open-panel model vscode context panel-opened received-webview
     (panel-opened panel) → record model { panel = just panel } , none
 
-    (received-webview wmsg) →
-        trace (case wmsg of λ where
-            a → "Received a!"
-            b → "Received b!") (model , none)
+    (received-webview wmsg) → model , none
 
 activate : System → IO ⊤
 activate sys = do
