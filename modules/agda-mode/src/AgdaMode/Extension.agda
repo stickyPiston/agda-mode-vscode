@@ -119,7 +119,7 @@ postulate Document CancellationToken SemanticToken : Set
 
 data Capability (msg : Set) : Set where
     command : String → msg → Capability msg
-    semantic-tokens-provider : Legend → ((List SemanticToken → Cmd msg) → msg) → LanguageFilter → Capability msg
+    semantic-tokens-provider : (vscode-api → Legend) → ((List SemanticToken → Cmd msg) → msg) → LanguageFilter → Capability msg
 
 postulate queue-ref : Set → Set
 
@@ -254,7 +254,7 @@ interact {model} {msg} (init-model , init-cmds) capabilities update record { vsc
             register-command vscode name (update-and-process-commands model msg update cmd-queue model-ref on-trigger-msg)
         register-capability {model} {msg} model-ref cmd-queue update (semantic-tokens-provider legend on-request-msg selector) onChangeEmitter =
             let provider = λ doc token return → update-and-process-commands model msg update cmd-queue model-ref (on-request-msg λ tokens → mk-Cmd λ _ → return tokens)
-             in register-semantic-tokens-provider vscode (encode-language-filter selector) onChangeEmitter provider legend
+             in register-semantic-tokens-provider vscode (encode-language-filter selector) onChangeEmitter provider (legend vscode)
 
         register-capabilities :
             ∀ {model msg} → Ref model → queue-ref ((msg → IO ⊤) → IO ⊤)
@@ -321,11 +321,19 @@ init proc = record
     ; stdout-buffer = ""
     } , read-stdout-cmd proc agda-stdout-update
 
+postulate mk-Legend : List String → List String → vscode-api → Legend
+{-# COMPILE JS mk-Legend = types => mods => vscode => new vscode.SemanticTokensLegend(types, mods) #-}
+
+-- TODO: Legend not exhaustive yet
+-- TODO: Make a better api for the legend, maybe something with a Bounded+Enum type class
+legend : vscode-api → Legend
+legend = mk-Legend ("comment" ∷ "namespace" ∷ "enum" ∷ "type" ∷ "enumMember" ∷ []) ("defaultLibrary" ∷ [])
+
 capabilities : List (Capability Msg)
 capabilities =
       command "agda-mode.open-panel" open-webview-msg
     ∷ command "agda-mode.load-file" load-file-msg
-    ∷ semantic-tokens-provider {!  !} token-request-msg (language "agda" ∩ scheme "file")
+    ∷ semantic-tokens-provider legend token-request-msg (language "agda" ∩ scheme "file")
     ∷ []
 
 postulate _==ᵇ_ : Buffer → Buffer → Bool
