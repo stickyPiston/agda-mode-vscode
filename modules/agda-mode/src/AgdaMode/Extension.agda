@@ -104,7 +104,7 @@ postulate Legend : Set
 
 data LanguageFilter : Set where
     language scheme path-pattern : String → LanguageFilter
-    _∪_ : LanguageFilter → LanguageFilter → LanguageFilter
+    _∩_ : LanguageFilter → LanguageFilter → LanguageFilter
 
 encode-language-filter : LanguageFilter → JSON
 encode-language-filter filter = j-object (kvs filter)
@@ -113,7 +113,7 @@ encode-language-filter filter = j-object (kvs filter)
         kvs (language x) = [ "language" , j-string x ]
         kvs (scheme x) = [ "scheme" , j-string x ]
         kvs (path-pattern x) = [ "pattern" , j-string x ]
-        kvs (l ∪ r) = kvs l ++ kvs r
+        kvs (l ∩ r) = kvs l ++ kvs r
 
 postulate Document CancellationToken SemanticToken : Set
 
@@ -325,7 +325,7 @@ capabilities : List (Capability Msg)
 capabilities =
       command "agda-mode.open-panel" open-webview-msg
     ∷ command "agda-mode.load-file" load-file-msg
-    ∷ semantic-tokens-provider {!  !} token-request-msg (language "agda" ∪ scheme "file")
+    ∷ semantic-tokens-provider {!  !} token-request-msg (language "agda" ∩ scheme "file")
     ∷ []
 
 postulate _==ᵇ_ : Buffer → Buffer → Bool
