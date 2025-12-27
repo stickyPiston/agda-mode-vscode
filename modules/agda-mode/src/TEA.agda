@@ -10,7 +10,7 @@ open import Agda.Primitive
 open import Prelude.Maybe
 open import Iepje.Internal.Utils using (case_of_ ; _>>_ ; forM ; _$_)
 
-open import TEA.Cmd
+open import TEA.Cmd hiding (new)
 open import TEA.System
 open System
 open import TEA.Capability

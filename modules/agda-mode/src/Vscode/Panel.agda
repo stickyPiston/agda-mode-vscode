@@ -1,7 +1,7 @@
 module Vscode.Panel where
 
 open import TEA.System
-open import TEA.Cmd
+open import TEA.Cmd as Cmd
 open import Iepje.Internal.JS.Language.IO
 open import Agda.Builtin.Unit
 open import Prelude.List hiding (_++_)
@@ -45,10 +45,10 @@ postulate onMessage : Panel → extension-context → (JSON → IO ⊤) → IO �
 {-# COMPILE JS onMessage = panel => ctx => action => cont => { panel.webview.onDidReceiveMessage(msg => action(msg)(() => {}), undefined, ctx.subscriptions); cont(a => a["tt"]()); } #-}
     
 sendMessage : ∀ {msg} {A} ⦃ c : Cloneable A ⦄ → Panel → A → Cmd msg
-sendMessage panel m = mk-Cmd λ _ → postMessage panel (encode m)
+sendMessage panel m = Cmd.new λ _ → postMessage panel (encode m)
 
 open-panel-cmd : ∀ {msg webview-msg} ⦃ c : Cloneable webview-msg ⦄ → System → (Panel → msg) → (webview-msg → msg) → Cmd msg
-open-panel-cmd record { vscode = vscode ; context = context } panel-msg webview-msg = mk-Cmd λ dispatch → do
+open-panel-cmd record { vscode = vscode ; context = context } panel-msg webview-msg = Cmd.new λ dispatch → do
     panel ← createWebviewPanel vscode
     dispatch (panel-msg panel)
     setHtml ("<html><body><main></main><script type=\"module\" src="

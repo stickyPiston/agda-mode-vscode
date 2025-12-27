@@ -13,5 +13,5 @@ batch cmds = record { actions = concat-map (λ cmd → Cmd.actions cmd) cmds }
 none : ∀ {msg} → Cmd msg
 none = record { actions = [] }
 
-mk-Cmd : ∀ {msg} → ((msg → IO ⊤) → IO ⊤) → Cmd msg
-mk-Cmd cmd = record { actions = [ cmd ] }
+new : ∀ {msg} → ((msg → IO ⊤) → IO ⊤) → Cmd msg
+new cmd = record { actions = [ cmd ] }

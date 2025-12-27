@@ -13,7 +13,7 @@ open import Prelude.String
 open import AgdaMode.Common.Communication
 open import AgdaMode.Common.InteractionResponse
 import TEA
-open import TEA.Cmd
+open import TEA.Cmd hiding (new)
 open import TEA.System
 open System
 open import TEA.Capability

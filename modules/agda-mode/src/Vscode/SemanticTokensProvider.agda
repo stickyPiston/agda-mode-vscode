@@ -11,7 +11,8 @@ open System
 open import Iepje.Internal.JS.Language.IO
 open import Agda.Builtin.Unit
 open import TEA.Capability
-open import TEA.Cmd
+import TEA.Cmd as Cmd
+open import TEA.Cmd using (Cmd)
 open import Iepje.Internal.Utils using (_$_ ; forM ; _>>_ ; _<$>_)
 
 -- TODO: If there is a use for it, then allow event emitter to have a type parameter
@@ -82,10 +83,10 @@ semantic-tokens-provider :
 semantic-tokens-provider {msg} legend on-request-msg selector = record
     { requirement-type = EventEmitter.t
     ; new-requirement = λ sys → EventEmitter.new (sys .vscode)
-    ; provided-type = just (Cmd msg , λ on-change-emitter → mk-Cmd λ  _ → EventEmitter.fire on-change-emitter)
+    ; provided-type = just (Cmd msg , λ on-change-emitter → Cmd.new λ  _ → EventEmitter.fire on-change-emitter)
     ; register = λ system requirement update →
         let vscode = system .vscode
-            provider = λ doc token return → update $ on-request-msg λ tokens → mk-Cmd λ _ → do
+            provider = λ doc token return → update $ on-request-msg λ tokens → Cmd.new λ _ → do
                 builder ← SemanticTokensBuilder.new vscode
                 forM tokens λ t → SemanticTokensBuilder.push builder (t .line) (t .char) (t .length) (t .token-type) (t .modifier)
                 SemanticTokensBuilder.build builder >>= return
