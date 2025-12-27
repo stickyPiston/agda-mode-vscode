@@ -10,7 +10,7 @@ open import Agda.Builtin.List
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Equality
 open import Agda.Builtin.Float
-open import AgdaMode.Common.JSON
+open import Prelude.JSON
 
 -- Now we can define any Agda data type we want as the
 -- message data type...

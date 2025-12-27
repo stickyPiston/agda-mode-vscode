@@ -1,4 +1,4 @@
-module AgdaMode.Common.JSON where
+module Prelude.JSON where
 
 open import Iepje.Internal.JS.Language.PrimitiveTypes
 

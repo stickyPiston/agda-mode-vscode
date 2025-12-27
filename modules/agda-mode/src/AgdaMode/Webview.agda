@@ -1,7 +1,7 @@
 module AgdaMode.Webview where
 
 open import AgdaMode.Common.Communication
-open import AgdaMode.Common.JSON
+open import Prelude.JSON
 
 open import Iepje.Prelude hiding (Maybe ; nothing ; just)
 open import Prelude.Maybe
