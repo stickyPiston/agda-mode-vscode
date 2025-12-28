@@ -38,17 +38,96 @@ encode-language-filter filter = j-object (kvs filter)
         kvs (path-pattern x) = [ "pattern" , j-string x ]
         kvs (l ∩ r) = kvs l ++ kvs r
 
-module Legend where
-    postulate t : Set
-
-    postulate new : List String → List String → vscode-api → t
-    {-# COMPILE JS new = types => mods => vscode => new vscode.SemanticTokensLegend(types, mods) #-}
-
 postulate Document CancellationToken SemanticTokens : Set
 
 record SemanticToken : Set where field
     line char length token-type modifier : ℕ
 open SemanticToken
+
+record Show (A : Set) : Set where field
+    show : A → String
+open Show
+
+record Enum (A : Set) : Set where field
+    enumerate : List A
+open Enum
+
+data DefaultTokenType : Set where
+    namespace class enum interface struct typeParameter type parameter : DefaultTokenType
+    variable-type property enumMember decorator event function method macro-type label : DefaultTokenType
+    comment string keyword number regexp operator : DefaultTokenType
+
+instance
+    ShowDefaultTokenType : Show DefaultTokenType
+    ShowDefaultTokenType = record { show = λ where
+        namespace → "namespace"
+        class → "class" ; enum → "enum"
+        interface → "interface"
+        struct → "struct"
+        typeParameter → "typeParameter"
+        type → "type"
+        parameter → "parameter"
+        variable-type → "variable"
+        property → "property"
+        enumMember → "enumMember"
+        decorator → "decorator"
+        event → "event"
+        function → "function"
+        method → "method"
+        macro-type → "macro"
+        label → "label"
+        comment → "comment"
+        string → "string"
+        keyword → "keyword"
+        number → "number"
+        regexp → "regexp"
+        operator → "operator" }
+
+    EnumDefaultTokenType : Enum DefaultTokenType
+    EnumDefaultTokenType = record
+        { enumerate = namespace ∷ class ∷ enum ∷ interface ∷ struct ∷ typeParameter ∷ type ∷ parameter
+                    ∷ variable-type ∷ property ∷ enumMember ∷ decorator ∷ event ∷ function ∷ method ∷ macro-type ∷ label
+                    ∷ comment ∷ string ∷ keyword ∷ number ∷ regexp ∷ operator ∷ []
+        }
+
+data DefaultModifier : Set where
+    declaration definition readonly static deprecated abstract-mod async : DefaultModifier
+    modification documentation defaultLibrary : DefaultModifier
+
+instance
+    ShowDefaultModifier : Show DefaultModifier
+    ShowDefaultModifier = record
+        { show = λ where
+            declaration → "declaration"
+            definition → "definition"
+            readonly → "readonly"
+            static → "static"
+            deprecated → "deprecated"
+            abstract-mod → "abstract"
+            async → "async"
+            modification → "modification"
+            documentation → "documentation"
+            defaultLibrary → "defaultLibrary"
+        }
+
+    EnumDefaultModifier : Enum DefaultModifier
+    EnumDefaultModifier = record
+        { enumerate = declaration ∷ definition ∷ readonly ∷ static ∷ deprecated ∷ abstract-mod
+                    ∷ async ∷ modification ∷ documentation ∷ defaultLibrary ∷ []
+        }
+
+module Legend where
+    postulate t : Set
+
+    private postulate build' : List String → List String → vscode-api → t
+    {-# COMPILE JS build' = types => mods => vscode => new vscode.SemanticTokensLegend(types, mods) #-}
+
+    build :
+        (TokenType Modifier : Set)
+        ⦃ show-tt : Show TokenType ⦄ ⦃ enum-tt : Enum TokenType ⦄
+        ⦃ show-mod : Show Modifier ⦄ ⦃ enum-mod : Enum Modifier ⦄ → vscode-api → t
+    build TokenType Modifier ⦃ show-tt ⦄ ⦃ enum-tt ⦄ ⦃ show-mod ⦄ ⦃ enum-mod ⦄ =
+        build' (map (show-tt .show) (enum-tt .enumerate)) (map (show-mod .show) (enum-mod .enumerate))
 
 -- ocaml-esque modules
 module SemanticTokensBuilder where
@@ -90,5 +169,5 @@ semantic-tokens-provider {msg} legend on-request-msg selector = record
                 builder ← SemanticTokensBuilder.new vscode
                 forM tokens λ t → SemanticTokensBuilder.push builder (t .line) (t .char) (t .length) (t .token-type) (t .modifier)
                 SemanticTokensBuilder.build builder >>= return
-         in just <$> register-semantic-tokens-provider vscode (encode-language-filter selector) requirement provider (legend vscode)
+        in just <$> register-semantic-tokens-provider vscode (encode-language-filter selector) requirement provider (legend vscode)
     }

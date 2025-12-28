@@ -61,16 +61,11 @@ init = record
     ; stdout-buffer = ""
     } , none
 
--- TODO: Legend not exhaustive yet
--- TODO: Make a better api for the legend, maybe something with a Bounded+Enum type class
-legend : vscode-api → Legend.t
-legend = Legend.new ("comment" ∷ "namespace" ∷ "enum" ∷ "type" ∷ "enumMember" ∷ []) ("defaultLibrary" ∷ [])
-
 capabilities : List (Capability Msg)
 capabilities =
       command "agda-mode.open-panel" open-webview-msg
     ∷ command "agda-mode.load-file" load-file-msg
-    ∷ semantic-tokens-provider legend token-request-msg (language "agda" ∩ scheme "file")
+    ∷ semantic-tokens-provider (Legend.build DefaultTokenType DefaultModifier) token-request-msg (language "agda" ∩ scheme "file")
     ∷ stdio-process "agda" [ "--interaction-json" ] agda-stdout-update
     ∷ []
 
