@@ -3,7 +3,7 @@ module Vscode.SemanticTokensProvider where
 open import Prelude.List
 open import Prelude.JSON
 open import Prelude.Sigma
-open import Prelude.Maybe hiding (_<$>_)
+open import Prelude.Maybe hiding (_<$>_ ; _>>=_)
 open import Prelude.Nat
 open import Agda.Builtin.String
 open import TEA.System

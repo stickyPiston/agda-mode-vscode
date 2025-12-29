@@ -13,3 +13,6 @@ const a _ = a
 
 _∘_ : (B → C) → (A → B) → A → C
 f ∘ g = λ x → f (g x)
+
+_|>_ : A → (A → B) → B
+x |> f = f x
