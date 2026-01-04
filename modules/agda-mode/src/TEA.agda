@@ -7,7 +7,7 @@ open import Prelude.Sigma
 open import Iepje.Internal.JS.Language.IO
 open import Iepje.Internal.JS.Language.MutableReferences
 open import Agda.Primitive
-open import Prelude.Maybe
+open import Prelude.Maybe hiding (_>>=_ ; pure)
 open import Iepje.Internal.Utils using (case_of_ ; _>>_ ; forM ; _$_)
 
 open import TEA.Cmd hiding (new)
@@ -15,6 +15,10 @@ open import TEA.System
 open System
 open import TEA.Capability
 open Capability
+open import Prelude.Nat
+
+private postulate trace : {A B : Set} → A → B → B 
+{-# COMPILE JS trace = _ => _ => _ => thing => val => { console.log(thing) ; return val } #-}
 
 provided-commands-type : List (Capability msg) → Set → Set
 provided-commands-type capabilities base-type =
@@ -45,17 +49,17 @@ provide-capability-commands sys (record
 postulate queue-ref : Set → Set
 
 postulate new-queue-ref : ∀ {A : Set} → IO (queue-ref A)
-{-# COMPILE JS new-queue-ref = _ => cont => cont({ val: [] }) #-}
+{-# COMPILE JS new-queue-ref = _ => _ => cont => cont({ val: [] }) #-}
 
 postulate enqueue : ∀ {A : Set} → queue-ref A → A → IO ⊤
-{-# COMPILE JS enqueue = _ => queueRef => a => cont => { queueRef.val.push(a); cont(a => a["tt"]()) } #-}
+{-# COMPILE JS enqueue = _ => _ => queueRef => a => cont => { queueRef.val.push(a); cont(a => a["tt"]()) } #-}
 
 postulate dequeue : ∀ {A : Set} → queue-ref A → IO (Maybe A)
-{-# COMPILE JS dequeue = _ => queueRef => cont => 
-    cont(queueRef.val.length === 0 ? undefined : queueRef.val.shift()) #-}
+{-# COMPILE JS dequeue = _ => _ => queueRef => cont => 
+    cont(queueRef.val.length === 0 ? (a => a["nothing"]()) : (a => a["just"](queueRef.val.shift()))) #-}
 
 postulate push-subscription : extension-context → Disposable → IO ⊤
-{-# COMPILE JS push-subscription = context => cmd => cont => { context.subscriptions.push(cmd); cont(a => a["tt"]()); } #-}
+{-# COMPILE JS push-subscription = _ => context => cmd => cont => { context.subscriptions.push(cmd); cont(a => a["tt"]()); } #-}
 
 -- This is a separate function because of a bug in JS backend
 -- We cannot put update-and-process-commands in a where block under interact
@@ -64,13 +68,12 @@ postulate push-subscription : extension-context → Disposable → IO ⊤
 update-and-process-commands : {model : Set} → (update : model → msg → model × Cmd msg) → queue-ref ((msg → IO ⊤) → IO ⊤) → Ref model → msg → IO ⊤
 update-and-process-commands update cmd-queue model-ref msg = do
     current-model ← get model-ref
-    case (update current-model msg) of λ where
-        (new-model , record { actions = actions }) → do
-            forM actions $ enqueue cmd-queue
-            set model-ref new-model
-            dequeue cmd-queue >>= λ where
-                (just new-cmd) → new-cmd (update-and-process-commands update cmd-queue model-ref)
-                nothing → pure tt
+    new-model , record { actions = actions } ← pure (update current-model msg) -- pure to prevent double running of the potentially expensive update
+    forM actions $ enqueue cmd-queue
+    set model-ref new-model
+    dequeue cmd-queue >>= λ where
+        (just new-cmd) → new-cmd (update-and-process-commands update cmd-queue model-ref)
+        nothing → pure tt
 
 -- Execute the TEA application
 -- beware: gonna be ugly agda code
@@ -98,8 +101,9 @@ interact {model} (init-model , init-cmds) capabilities update system = do
             → (capabilities : List (Capability msg)) → HList (map requirement-type capabilities)
             → IO ⊤
         register-capabilities model-ref cmd-queue update [] [] = pure tt
-        register-capabilities model-ref cmd-queue update (record { register = register } ∷ capabilities) (req ∷ requirements) =
+        register-capabilities model-ref cmd-queue update (record { register = register } ∷ capabilities) (req ∷ requirements) = do
             let update' = update-and-process-commands update cmd-queue model-ref
-             in register system req update' >>= λ where
+            register system req update' >>= λ where
                 (just disposable) → push-subscription (system .context) disposable
                 nothing           → pure tt
+            register-capabilities model-ref cmd-queue update capabilities requirements

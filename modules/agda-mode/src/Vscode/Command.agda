@@ -1,7 +1,7 @@
 module Vscode.Command where
 
 open import Iepje.Internal.JS.Language.IO
-open import Prelude.Maybe hiding (_<$>_)
+open import Prelude.Maybe hiding (_<$>_ ; _>>=_ ; pure)
 open import Iepje.Internal.Utils using (_<$>_)
 open import Prelude.String
 open import Agda.Builtin.Unit

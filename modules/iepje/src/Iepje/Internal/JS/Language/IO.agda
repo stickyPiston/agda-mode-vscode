@@ -21,15 +21,15 @@ postulate IO : ∀ {ℓ} → Set ℓ → Set ℓ
 --  * Agda's JS backend seems to expect CPS (it calls main with (a => {}))
 
 postulate pure : ∀ {ℓ} {A : Set ℓ} → A → IO A
-{-# COMPILE JS pure = _ => a => ka => ka(a) #-}
+{-# COMPILE JS pure = _ => _ => a => ka => ka(a) #-}
 
 postulate _>>=_ : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} {B : Set ℓ₂} → IO A → (A → IO B) → IO B
 
 -- This implementation generates a JS call stack with depth O(total number of _>>=_ evalauted)
---  {-# COMPILE JS _>>=_ = _ => _ => ma => a2mb => kb => ma(a => a2mb(a)(b => kb(b))) #-}
+--  {-# COMPILE JS _>>=_ = _ => _ => _ => _ => ma => a2mb => kb => ma(a => a2mb(a)(b => kb(b))) #-}
 
 -- This implementation generates a JS call stack with depth O(max nesting depth of _>>=_)
-{-# COMPILE JS _>>=_ = _ => _ => ma => a2mb => kb =>
+{-# COMPILE JS _>>=_ = _ => _ => _ => _ => ma => a2mb => kb =>
   {
     let ar;
     ma(a => ar = a);

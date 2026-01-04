@@ -9,7 +9,7 @@ open import Prelude.JSON
 open import Iepje.Internal.Utils using (_>>_)
 open import Prelude.String
 open import Iepje.Internal.Utils using (case_of_)
-open import Prelude.Maybe
+open import Prelude.Maybe hiding (_>>=_ ; pure)
 
 postulate text-document uri Panel : Set
 postulate createWebviewPanel : vscode-api → IO Panel

@@ -16,3 +16,5 @@ f ∘ g = λ x → f (g x)
 
 _|>_ : A → (A → B) → B
 x |> f = f x
+
+infixl 0 _|>_

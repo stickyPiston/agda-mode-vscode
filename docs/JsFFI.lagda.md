@@ -83,7 +83,9 @@ record Σ {ℓ₁ ℓ₂ : Level} (A : Set ℓ₁) (B : A → Set ℓ₂) : Set 
 ```
 
 You can also remove the constructor to make a values of a type only constructable through the ffi. The
-representation of this type is then defined by how you define the functions for the fields.
+representation of this type is then defined by how you define the functions for the fields. The pattern
+matching function should still be defined. Whenever no constructor is defined, agda calls the constructor
+internally "record", which is the only key in the dictionary given to `v`.
 
 ```agda
 record System : Set where field
@@ -91,6 +93,7 @@ record System : Set where field
     vscode  : vscode-api
 
 -- The representation of a System is an object with two properties: "process" and "vscode"
+{-# COMPILE JS System = ((x, v) => v["record"](x.process, x.vscode)) #-}
 {-# COMPILE JS System.process = ({ process }) => process #-}
 {-# COMPILE JS System.vscode  = ({ vscode  }) => vscode #-}
 ```

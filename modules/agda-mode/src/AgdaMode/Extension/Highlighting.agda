@@ -6,11 +6,17 @@ open import Prelude.String
 open import Prelude.Maybe using (Maybe ; just ; nothing)
 open import Prelude.JSON.Decode
 open import Prelude.JSON
-open import Iepje.Internal.Utils using (case_of_)
+open import Iepje.Internal.Utils using (case_of_ ; if_then_else_)
 open import Prelude.Function
 open import Agda.Builtin.Bool
-open import Vscode.SemanticTokensProvider renaming (string to string'')
+open import Vscode.SemanticTokensProvider
 open import Prelude.Sigma
+open import Prelude.Vec hiding (slice ; map ; for)
+open import Prelude.Function
+open import TEA.System
+
+private postulate trace : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} {B : Set ℓ₂} → A → B → B
+{-# COMPILE JS trace = _ => _ => _ => _ => thing => val => { console.log(thing) ; return val } #-}
 
 data Aspect : Set where
     background markup symbol inductive-constructor string' postulate' function pragma : Aspect
@@ -49,7 +55,7 @@ definition-site-decoder = ⦇ mk-DefinitionSite (required "filepath" string) (re
 record Token : Set where
     constructor mk-Token
     field
-        atoms : List Aspect
+        atoms : Σ[ n ∈ ℕ ] Vec Aspect (suc n)
         definition-site : Maybe DefinitionSite
         note : String
         start end : ℕ
@@ -57,15 +63,62 @@ record Token : Set where
 
 token-decoder : Decoder Token
 token-decoder = ⦇ mk-Token
-    (required "atoms" (list aspect-decoder))
+    (required "atoms" (non-empty-vec aspect-decoder))
     (optional-null "definitionSite" definition-site-decoder)
     (required "note" string)
     (required "range" (list nat |> index 0)) (required "range" (list nat |> index 1))
     (required "tokenBased" string <&> primStringEquality "TokenBased") ⦈
 
--- Conversion function from highlighting atoms to legend token types + modifiers
-aspect→legend : Aspect → DefaultTokenType × DefaultModifier
-aspect→legend = {!   !}
+highlighting-info-decoder : Decoder (List Token)
+highlighting-info-decoder =  list token-decoder |> required "payload" |> required "info"
 
-agda-token→semantic-token : Token → SemanticToken
-agda-token→semantic-token = {!   !}
+-- Conversion function from highlighting atoms to legend token types + modifiers
+aspect→legend : ∀ {n} → Vec Aspect (suc n) → String × List String
+aspect→legend (symbol ∷ _) = "operator" , []
+aspect→legend (inductive-constructor ∷ _) = "enumMember" , []
+aspect→legend (string' ∷ _) = "string" , []
+aspect→legend (postulate' ∷ _) = "function" , []
+aspect→legend (function ∷ _) = "function" , []
+aspect→legend (comment ∷ _) = "comment" , []
+aspect→legend (keyword ∷ _) = "keyword" , []
+aspect→legend (number ∷ _) = "number" , []
+aspect→legend (primitive-type ∷ _) = "type" , [ "defaultLibrary" ]
+aspect→legend (dead-code ∷ _) = "comment" , []
+aspect→legend (catchall-clause ∷ _) = "operator" , []
+aspect→legend (bound ∷ _) = "parameter" , []
+aspect→legend (coinductive-constructor ∷ _) = "enumMember" , []
+aspect→legend (datatype ∷ _) = "type" , []
+aspect→legend (field' ∷ _) = "property" , []
+aspect→legend (module' ∷ _) = "namespace" , []
+aspect→legend (primitive' ∷ _) = "string" , [ "defaultLibrary" ]
+aspect→legend (record' ∷ _) = "struct" , []
+aspect→legend (operator ∷ _) = "operator" , []
+aspect→legend _ = "variable" , []
+
+legend : Legend.t
+legend = record { TokenType = DefaultTokenType ; Modifier = DefaultModifier }
+
+divide-ranges : vscode-api → TextDocument.t → Range.t → List Range.t
+divide-ranges vscode doc r = go (line (start r) - line (end r))
+    where
+        open Position
+        open Range
+
+        single-line-range : ℕ → Range.t
+        single-line-range n =
+            let full-line-range = TextLine.range (TextDocument.line-at doc (line (start r) + n))
+             in Range.new vscode
+                    (start (if n == zero then r else full-line-range))
+                    (end (if n == line (end r) - line (start r) then r else full-line-range))
+
+        go : ℕ → List Range.t
+        go zero = single-line-range zero ∷ []
+        go (suc n) = single-line-range n ∷ go n
+
+make-highlighting-tokens : vscode-api → TextDocument.t → List Token → List SemanticToken.t
+make-highlighting-tokens vscode doc = concat-map λ token →
+    let original-range = Range.new vscode (TextDocument.position-at doc (token .start - 1)) (TextDocument.position-at doc (token .end - 1))
+        single-line-ranges = divide-ranges vscode doc original-range
+        token-type , mods = aspect→legend (token .atoms .Σ.proj₂)
+     in for single-line-ranges λ r → record { range = r ; token-type = token-type ; modifiers = mods }
+    where open Token

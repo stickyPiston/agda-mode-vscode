@@ -7,7 +7,7 @@ open import TEA.Cmd as Cmd
 
 open import Prelude.String
 open import Prelude.List
-open import Prelude.Maybe
+open import Prelude.Maybe hiding (pure ; _>>=_)
 open import Prelude.Sigma
 open import Agda.Builtin.Unit
 
