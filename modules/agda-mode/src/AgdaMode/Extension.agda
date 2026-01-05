@@ -1,7 +1,7 @@
 module AgdaMode.Extension where
 
 open import Iepje.Internal.JS.Language.IO using (IO)
-open import Iepje.Prelude hiding (Maybe; just; nothing; interact; _>>_ ; for)
+open import Iepje.Prelude hiding (Maybe; just; nothing; interact; _>>_ ; for ; empty)
 open import Iepje.Internal.Utils using (_>>_)
 
 open import Prelude.Sigma
@@ -11,6 +11,7 @@ open import Prelude.Maybe hiding (map-maybe)
 open import Prelude.String
 open import Prelude.JSON
 open import Prelude.JSON.Decode hiding (_<$>_ ; pure)
+open import Prelude.Map
 
 open import AgdaMode.Common.Communication
 open import AgdaMode.Common.InteractionResponse
@@ -23,6 +24,7 @@ open import Vscode.SemanticTokensProvider
 open import Vscode.Command
 open import Vscode.Panel
 open import Vscode.StdioProcess
+open import Vscode.Window
 open import AgdaMode.Extension.Highlighting
 
 -- Debug functions
@@ -40,7 +42,8 @@ postulate try : ∀ {A : Set} → (⊤ → A) → A
 record Model : Set where field
     panel : Maybe Panel
     stdout-buffer : String
-    tokens : List Token
+    current-doc : Maybe TextDocument.t
+    loaded-files : StringMap (List Token)
 open Model
 
 -- NO_POSITIVITY_CHECK needed to get around the non-positive position of Msg in token-request-msg
@@ -51,6 +54,7 @@ data Msg : Set where
     open-webview-msg : Msg
     panel-opened : Panel → Msg
     token-request-msg : TextDocument.t → (List SemanticToken.t → Cmd Msg) → Msg
+    new-active-editor : Maybe TextEditor.t → Msg
     
     -- Agda messages
     agda-stdout-update : Buffer.t → Msg
@@ -64,7 +68,8 @@ init : Model × Cmd Msg
 init = record
     { panel = nothing
     ; stdout-buffer = ""
-    ; tokens = []
+    ; current-doc = nothing
+    ; loaded-files = empty
     } , none
 
 capabilities : List (Capability Msg)
@@ -73,20 +78,17 @@ capabilities =
     ∷ command "agda-mode.load-file" load-file-msg
     ∷ semantic-tokens-provider legend token-request-msg (language "agda" ∩ scheme "file")
     ∷ stdio-process "agda" [ "--interaction-json" ] agda-stdout-update
+    ∷ on-did-change-active-text-editor new-active-editor
     ∷ []
 
 kind-decoder : Decoder String
 kind-decoder = required "kind" string
 
 update : Cmd Msg → (String → Cmd Msg) → System → Model → Msg → Model × Cmd Msg
-update request-token-cmd send-over-stdin-cmd system model msg = case msg of λ where
-    load-file-msg →
-        let path = "/Users/terra/Desktop/code/agda-mode-agda/modules/agda-mode/src/AgdaMode/Extension.agda"
-            stdin-cmd = send-over-stdin-cmd ("IOTCM \"" ++ path ++ "\" NonInteractive Direct (Cmd_load \"" ++ path ++ "\" [])\n")
-            record { panel = panel } = model
-         in case panel of λ where
-            nothing → model , stdin-cmd -- batch (stdin-cmd ∷ open-panel-cmd system panel-opened received-webview ∷ [])
-            (just _) → model , stdin-cmd
+update request-token-cmd send-over-stdin-cmd system model msg = trace msg $ case msg of λ where
+    load-file-msg → model , from-Maybe none do
+        path ← TextDocument.file-name <$> model .current-doc
+        pure $ send-over-stdin-cmd ("IOTCM \"" ++ path ++ "\" NonInteractive Direct (Cmd_load \"" ++ path ++ "\" [])\n")
 
     (agda-stdout-update buffer) → try λ _ →
         -- TODO: Agda duplicates the computation of the rhs when pattern matching on a record like this
@@ -97,14 +99,24 @@ update request-token-cmd send-over-stdin-cmd system model msg = case msg of λ w
                 parsed-responses ← traverse-Vec parse-response responses
                 highlighting-response ← find-Vec (λ r → primStringEquality "HighlightingInfo" <$> kind-decoder r or-else false) parsed-responses
                 tokens ← highlighting-info-decoder highlighting-response
-                pure (record new-model { tokens = tokens } , request-token-cmd)
+                -- TODO: Eventually we should probably take better account of which command this update is a response to
+                path ← TextDocument.file-name <$> model .current-doc
+                pure (record new-model { loaded-files = model .loaded-files [ path ]:= tokens } , request-token-cmd)
 
     -- open-webview-msg → model , open-panel model system panel-opened received-webview
     -- (panel-opened panel) → record model { panel = just panel } , none
 
-    (token-request-msg doc return-tokens-cmd) →
-        let highlighting-tokens = make-highlighting-tokens (system .vscode) doc $ model .tokens
-         in model , return-tokens-cmd highlighting-tokens
+    -- TODO: We need to return an empty list of tokens because vscode will wait for reply.
+    --       If one isn't given then, it will just ignore subsequent replies. Ideally, we would use 
+    --       reject with a busy message.
+    (token-request-msg doc return-tokens-cmd) → from-Maybe (model , return-tokens-cmd []) do
+        _ ← trace (model .loaded-files) $ pure tt
+        tokens ← model .loaded-files !? TextDocument.file-name doc
+        let highlighting-tokens = make-highlighting-tokens (system .vscode) doc tokens
+        pure $ model , return-tokens-cmd highlighting-tokens
+
+    (new-active-editor nothing) → record model { current-doc = nothing } , none
+    (new-active-editor (just editor)) → record model { current-doc = just $ TextEditor.document editor } , none
 
     -- (received-webview wmsg) → model , none
     _ → model , none

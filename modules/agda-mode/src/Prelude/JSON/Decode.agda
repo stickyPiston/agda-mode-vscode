@@ -5,7 +5,7 @@ open import Agda.Builtin.Int
 open import Agda.Builtin.Float
 open import Agda.Builtin.Bool
 
-open import Prelude.Maybe using (Maybe ; just ; nothing ; traverse ; _!?_ ; _>>=_)
+open import Prelude.Maybe using (Maybe ; just ; nothing ; traverse ; _>>=_)
 import Prelude.Maybe as M
 open import Prelude.List using (List)
 open import Prelude.String using (String)
@@ -14,6 +14,7 @@ open import Prelude.Function
 open import Prelude.Nat
 open import Prelude.Sigma
 open import Prelude.Vec
+open import Prelude.Map
 
 open import Iepje.Internal.JS.Language.PrimitiveTypes using (number)
 open import Iepje.Internal.Utils using (case_of_)
@@ -61,18 +62,6 @@ float _ = nothing
 list : Decoder A → Decoder (List A)
 list d (j-array xs) = traverse d xs
 list _ _ = nothing
-
-postulate to-Vec : ∀ {ℓ} {A : Set ℓ} → List A → Σ[ n ∈ ℕ ] Vec A n
-{-# COMPILE JS to-Vec = _ => _ => xs => [xs.length, xs] #-}
-
-non-empty-vec : Decoder A → Decoder (Σ[ n ∈ ℕ ] Vec A (suc n))
-non-empty-vec d (j-array xs) = case traverse d xs of λ where
-    (just List.[]) → nothing
-    (just (x List.∷ xs)) → 
-        let n , xs-Vec = to-Vec xs
-        in just (n , (x ∷ xs-Vec))
-    nothing → nothing
-non-empty-vec d _ = nothing
 
 private postulate safe-index : ∀ {ℓ} {A : Set ℓ} → ℕ → List A → Maybe A
 {-# COMPILE JS safe-index = _ => _ => idx => xs => a => a["just"](xs[idx]) #-}

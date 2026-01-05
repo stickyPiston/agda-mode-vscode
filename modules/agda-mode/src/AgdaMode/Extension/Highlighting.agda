@@ -2,7 +2,7 @@ module AgdaMode.Extension.Highlighting where
 
 open import Prelude.List
 open import Prelude.Nat
-open import Prelude.String
+open import Prelude.String hiding (_==_)
 open import Prelude.Maybe using (Maybe ; just ; nothing)
 open import Prelude.JSON.Decode
 open import Prelude.JSON
@@ -11,7 +11,6 @@ open import Prelude.Function
 open import Agda.Builtin.Bool
 open import Vscode.SemanticTokensProvider
 open import Prelude.Sigma
-open import Prelude.Vec hiding (slice ; map ; for)
 open import Prelude.Function
 open import TEA.System
 
@@ -55,7 +54,7 @@ definition-site-decoder = ⦇ mk-DefinitionSite (required "filepath" string) (re
 record Token : Set where
     constructor mk-Token
     field
-        atoms : Σ[ n ∈ ℕ ] Vec Aspect (suc n)
+        atoms : List Aspect
         definition-site : Maybe DefinitionSite
         note : String
         start end : ℕ
@@ -63,7 +62,7 @@ record Token : Set where
 
 token-decoder : Decoder Token
 token-decoder = ⦇ mk-Token
-    (required "atoms" (non-empty-vec aspect-decoder))
+    (required "atoms" (list aspect-decoder))
     (optional-null "definitionSite" definition-site-decoder)
     (required "note" string)
     (required "range" (list nat |> index 0)) (required "range" (list nat |> index 1))
@@ -73,7 +72,7 @@ highlighting-info-decoder : Decoder (List Token)
 highlighting-info-decoder =  list token-decoder |> required "payload" |> required "info"
 
 -- Conversion function from highlighting atoms to legend token types + modifiers
-aspect→legend : ∀ {n} → Vec Aspect (suc n) → String × List String
+aspect→legend : List Aspect → String × List String
 aspect→legend (symbol ∷ _) = "operator" , []
 aspect→legend (inductive-constructor ∷ _) = "enumMember" , []
 aspect→legend (string' ∷ _) = "string" , []
@@ -119,6 +118,6 @@ make-highlighting-tokens : vscode-api → TextDocument.t → List Token → List
 make-highlighting-tokens vscode doc = concat-map λ token →
     let original-range = Range.new vscode (TextDocument.position-at doc (token .start - 1)) (TextDocument.position-at doc (token .end - 1))
         single-line-ranges = divide-ranges vscode doc original-range
-        token-type , mods = aspect→legend (token .atoms .Σ.proj₂)
+        token-type , mods = aspect→legend (token .atoms)
      in for single-line-ranges λ r → record { range = r ; token-type = token-type ; modifiers = mods }
     where open Token

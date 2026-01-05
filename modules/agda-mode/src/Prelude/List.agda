@@ -29,7 +29,3 @@ concat-map f as = concat (map f as)
 foldrM : (A → B → IO B) → B → List A → IO B
 foldrM f b [] = pure b
 foldrM f b (a ∷ as) = foldrM f b as >>= f a
-
-data _∈_ {ℓ} {A : Set ℓ} : A → List A → Set ℓ where
-    here  : {a : A} {as : List A} → a ∈ (a ∷ as)
-    there : {a a' : A} {as : List A} → a ∈ as → a ∈ (a' ∷ as)

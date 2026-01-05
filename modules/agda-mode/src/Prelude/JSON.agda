@@ -5,6 +5,7 @@ open import Iepje.Internal.JS.Language.PrimitiveTypes
 open import Prelude.Sigma using (_×_)
 open import Prelude.Maybe
 open import Prelude.Nat
+open import Prelude.Map
 
 open import Agda.Builtin.List
 open import Agda.Builtin.Equality
@@ -19,7 +20,7 @@ data JSON : Set where
     j-bool : boolean → JSON
     j-number : number → JSON
     j-array : List JSON → JSON
-    j-object : List (string × JSON) → JSON
+    j-object : StringMap JSON → JSON
 
 {-# COMPILE JS JSON = ((x, v) =>
       x === null             ? v["j-null"]()
@@ -28,15 +29,14 @@ data JSON : Set where
     : typeof x === "number"  ? v["j-number"](x)
     /* Recursive patterns on the list and the object kvs are applied by the compiler */
     : Array.isArray(x)       ? v["j-array"](x)
-                             : v["j-object"](Object.entries(x)))
+                             : v["j-object"](x))
     #-}
 {-# COMPILE JS j-null = null #-}
 {-# COMPILE JS j-string = s => String(s) #-}
 {-# COMPILE JS j-bool = b => Boolean(b) #-}
 {-# COMPILE JS j-number = n => Number(n) #-}
 {-# COMPILE JS j-array = l => [...l] #-}
-{-# COMPILE JS j-object = kvs => /* Dual of Object.entries(...) */
-    kvs.reduce((acc, [k, v]) => ({ ...acc, [k]: v }), {}) #-}
+{-# COMPILE JS j-object = kvs => kvs #-}
 
 -- 
 record Cloneable (A : Set) : Set where field

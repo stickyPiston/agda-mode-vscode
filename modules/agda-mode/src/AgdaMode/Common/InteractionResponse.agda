@@ -32,38 +32,6 @@ postulate parse-json : String → Maybe JSON
 postulate string-slice : ℕ → String → String
 {-# COMPILE JS string-slice = n => s => s.slice(Number(n)) #-}
 
-find-map : {A B : Set} → (A → Maybe B) → List A → Maybe B
-find-map p [] = nothing
-find-map p (a ∷ as) = case p a of λ where
-    (just b) → just b
-    nothing → find-map p as
-
-parse-kind : JSON → Maybe String
-parse-kind (j-object kvs) = find-map (λ where
-    ("kind" , j-string kind) → just kind
-    _ → nothing) kvs
-parse-kind _ = nothing
-
-data AgdaResponse : Set where
-    DisplayInfo :
-          (errors : List JSON)
-        → (invisible-goals : List JSON)
-        → (visible-goals : List JSON)
-        → (warning : List JSON)
-        → AgdaResponse
-
-find-key : String → JSON → Maybe JSON
-find-key k (j-object kvs) = find-map (λ (k' , v) → if primStringEquality k k' then just v else nothing) kvs
-find-key _ _ = nothing
-
-parse-DisplayInfo : JSON → Maybe AgdaResponse
-parse-DisplayInfo o = find-key "info" o >>= λ json → do
-    j-array errors ← find-key "errors" json where _ → nothing
-    j-array invisible-goals ← find-key "invisibleGoals" json where _ → nothing
-    j-array visible-goals ← find-key "visibleGoals" json where _ → nothing
-    j-array warnings ← find-key "warnings" json where _ → nothing
-    just (DisplayInfo errors invisible-goals visible-goals warnings)
-
 parse-response : String → Maybe JSON
 parse-response response = do
     let truncated-response = if response starts-with "JSON> " then string-slice 6 response else response

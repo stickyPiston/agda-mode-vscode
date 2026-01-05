@@ -11,7 +11,7 @@
     "Other"
   ],
 	"activationEvents": [
-		"onLanguage:agda"
+    "*"
 	],
   "main": "./out/extension.js",
   "contributes": {
@@ -26,15 +26,26 @@
     "keybindings": [
       {
         "command": "agda-mode.load-file",
-        "when": "editorTextFocus && !editorHasSelection && editorLangId =~ /agda/",
+        "when": "editorLangId =~ /agda/",
         "key": "ctrl+c ctrl+l"
+      }
+    ],
+    "commands": [
+      {
+        "command": "agda-mode.load-file",
+        "title": "Load an agda file"
       }
     ]
   },
+  "configurationDefaults": {
+    "agda": {
+      "editor.semanticHighlighting.enabled": true
+    }
+  },
   "scripts": {
     "vscode:prepublish": "npm run build",
-    "build:webview": "cd modules/agda-mode && agda --js --js-es6 --compile-dir=../../out --library-file=../../libraries --no-default-libraries src/AgdaMode/Webview.agda",
-    "build:extension": "cd modules/agda-mode && agda --js --js-es6 --compile-dir=../../out --library-file=../../libraries --no-default-libraries src/AgdaMode/Extension.agda",
+    "build:webview": "cd modules/agda-mode && agda --js --js-es6 --js-verify --compile-dir=../../out --library-file=../../libraries --no-default-libraries src/AgdaMode/Webview.agda",
+    "build:extension": "cd modules/agda-mode && agda --js --js-es6 --js-verify --compile-dir=../../out --library-file=../../libraries --no-default-libraries src/AgdaMode/Extension.agda",
     "build": "npm run build:webview && npm run build:extension && cp modules/agda-mode/src/extension.js out"
   }
 }

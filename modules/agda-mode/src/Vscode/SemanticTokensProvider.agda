@@ -15,6 +15,7 @@ import TEA.Cmd as Cmd
 open import TEA.Cmd using (Cmd)
 open import Iepje.Internal.Utils using (_$_ ; forM ; _>>_ ; _<$>_)
 open import Prelude.Vec hiding (map)
+open import Prelude.Map
 
 private postulate trace : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} {B : Set ℓ₂} → A → B → B
 {-# COMPILE JS trace = _ => _ => _ => _ => thing => val => { console.log(thing) ; return val } #-}
@@ -36,11 +37,11 @@ data LanguageFilter : Set where
 encode-language-filter : LanguageFilter → JSON
 encode-language-filter filter = j-object (kvs filter)
     where
-        kvs : LanguageFilter → List (String × JSON)
-        kvs (language x) = [ "language" , j-string x ]
-        kvs (scheme x) = [ "scheme" , j-string x ]
-        kvs (path-pattern x) = [ "pattern" , j-string x ]
-        kvs (l ∩ r) = kvs l ++ kvs r
+        kvs : LanguageFilter → StringMap JSON
+        kvs (language x) = "language" ↦ j-string x
+        kvs (scheme x) = "scheme" ↦ j-string x
+        kvs (path-pattern x) = "pattern" ↦ j-string x
+        kvs (l ∩ r) = kvs l <> kvs r
 
 postulate CancellationToken SemanticTokens : Set
 
@@ -107,6 +108,9 @@ module TextDocument where
 
     postulate line-at : t → ℕ → TextLine.t
     {-# COMPILE JS line-at = doc => n => doc.lineAt(Number(n)) #-}
+
+    postulate file-name : t → String
+    {-# COMPILE JS file-name = doc => doc.fileName #-}
 
 module SemanticTokensBuilder where
     postulate t : Set
