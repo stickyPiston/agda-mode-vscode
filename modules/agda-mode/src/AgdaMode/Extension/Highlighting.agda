@@ -73,26 +73,26 @@ highlighting-info-decoder =  list token-decoder |> required "payload" |> require
 
 -- Conversion function from highlighting atoms to legend token types + modifiers
 aspect→legend : List Aspect → String × List String
-aspect→legend (symbol ∷ _) = "operator" , []
-aspect→legend (inductive-constructor ∷ _) = "enumMember" , []
-aspect→legend (string' ∷ _) = "string" , []
-aspect→legend (postulate' ∷ _) = "function" , []
-aspect→legend (function ∷ _) = "function" , []
-aspect→legend (comment ∷ _) = "comment" , []
-aspect→legend (keyword ∷ _) = "keyword" , []
-aspect→legend (number ∷ _) = "number" , []
-aspect→legend (primitive-type ∷ _) = "type" , [ "defaultLibrary" ]
-aspect→legend (dead-code ∷ _) = "comment" , []
-aspect→legend (catchall-clause ∷ _) = "operator" , []
-aspect→legend (bound ∷ _) = "parameter" , []
-aspect→legend (coinductive-constructor ∷ _) = "enumMember" , []
-aspect→legend (datatype ∷ _) = "type" , []
-aspect→legend (field' ∷ _) = "property" , []
-aspect→legend (module' ∷ _) = "namespace" , []
-aspect→legend (primitive' ∷ _) = "string" , [ "defaultLibrary" ]
-aspect→legend (record' ∷ _) = "struct" , []
-aspect→legend (operator ∷ _) = "operator" , []
-aspect→legend _ = "variable" , []
+aspect→legend (symbol ∷ _) = "operator" ,, []
+aspect→legend (inductive-constructor ∷ _) = "enumMember" ,, []
+aspect→legend (string' ∷ _) = "string" ,, []
+aspect→legend (postulate' ∷ _) = "function" ,, []
+aspect→legend (function ∷ _) = "function" ,, []
+aspect→legend (comment ∷ _) = "comment" ,, []
+aspect→legend (keyword ∷ _) = "keyword" ,, []
+aspect→legend (number ∷ _) = "number" ,, []
+aspect→legend (primitive-type ∷ _) = "type" ,, [ "defaultLibrary" ]
+aspect→legend (dead-code ∷ _) = "comment" ,, []
+aspect→legend (catchall-clause ∷ _) = "operator" ,, []
+aspect→legend (bound ∷ _) = "parameter" ,, []
+aspect→legend (coinductive-constructor ∷ _) = "enumMember" ,, []
+aspect→legend (datatype ∷ _) = "type" ,, []
+aspect→legend (field' ∷ _) = "property" ,, []
+aspect→legend (module' ∷ _) = "namespace" ,, []
+aspect→legend (primitive' ∷ _) = "string" ,, [ "defaultLibrary" ]
+aspect→legend (record' ∷ _) = "struct" ,, []
+aspect→legend (operator ∷ _) = "operator" ,, []
+aspect→legend _ = "variable" ,, []
 
 legend : Legend.t
 legend = record { TokenType = DefaultTokenType ; Modifier = DefaultModifier }
@@ -118,6 +118,6 @@ make-highlighting-tokens : vscode-api → TextDocument.t → List Token → List
 make-highlighting-tokens vscode doc = concat-map λ token →
     let original-range = Range.new vscode (TextDocument.position-at doc (token .start - 1)) (TextDocument.position-at doc (token .end - 1))
         single-line-ranges = divide-ranges vscode doc original-range
-        token-type , mods = aspect→legend (token .atoms)
+        token-type ,, mods = aspect→legend (token .atoms)
      in for single-line-ranges λ r → record { range = r ; token-type = token-type ; modifiers = mods }
     where open Token

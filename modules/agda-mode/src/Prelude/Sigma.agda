@@ -23,5 +23,10 @@ infix 2 Σ-syntax
 
 syntax Σ-syntax A (λ x → B) = Σ[ x ∈ A ] B
 
-_×_ : ∀ {ℓ₁ ℓ₂} → Set ℓ₁ → Set ℓ₂ → Set (ℓ₁ ⊔ ℓ₂)
-A × B = Σ A λ _ → B
+infix 3 _,,_
+record _×_ (A : Set ℓ₁) (B : Set ℓ₂) : Set (ℓ₁ ⊔ ℓ₂) where
+    constructor _,,_
+    field
+        fst : A
+        snd : B
+open _×_ public

@@ -68,9 +68,11 @@ traverse-Vec : (A → Maybe B) → Vec A n → Maybe (Vec B n)
 traverse-Vec f [] = just []
 traverse-Vec f (a ∷ as) = ⦇ f a ∷ traverse-Vec f as ⦈
 
--- lookup : String → List (String × A) → Maybe A
--- lookup name [] = nothing
--- lookup name ((k , v) ∷ kvs) = if primStringEquality name k then just v else lookup name kvs
+foldM : B → List A → (B → A → Maybe B) → Maybe B
+foldM b [] f = just b
+foldM b (a ∷ as) f = do
+    b' ← f b a
+    foldM b' as f
 
 find-Vec : (A → Bool) → Vec A n → Maybe A
 find-Vec p [] = nothing

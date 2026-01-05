@@ -12,6 +12,7 @@ open import Prelude.String
 open import Prelude.JSON
 open import Prelude.JSON.Decode hiding (_<$>_ ; pure)
 open import Prelude.Map
+open import Agda.Primitive
 
 open import AgdaMode.Common.Communication
 open import AgdaMode.Common.InteractionResponse
@@ -70,7 +71,7 @@ init = record
     ; stdout-buffer = ""
     ; current-doc = nothing
     ; loaded-files = empty
-    } , none
+    } ,, none
 
 capabilities : List (Capability Msg)
 capabilities =
@@ -84,24 +85,32 @@ capabilities =
 kind-decoder : Decoder String
 kind-decoder = required "kind" string
 
+the : (A : Set) → A → A
+the A a = a
+
 update : Cmd Msg → (String → Cmd Msg) → System → Model → Msg → Model × Cmd Msg
 update request-token-cmd send-over-stdin-cmd system model msg = trace msg $ case msg of λ where
-    load-file-msg → model , from-Maybe none do
+    load-file-msg → model ,, from-Maybe none do
         path ← TextDocument.file-name <$> model .current-doc
         pure $ send-over-stdin-cmd ("IOTCM \"" ++ path ++ "\" NonInteractive Direct (Cmd_load \"" ++ path ++ "\" [])\n")
 
-    (agda-stdout-update buffer) → try λ _ →
+    (agda-stdout-update buffer) → from-Maybe (model ,, none) do
         -- TODO: Agda duplicates the computation of the rhs when pattern matching on a record like this
         let n , lines = split (model .stdout-buffer ++ Buffer.toString buffer) "\n"
-            responses , new-buffer = unsnoc lines
-            new-model = record model { stdout-buffer = new-buffer }
-         in from-Maybe (new-model , none) do
-                parsed-responses ← traverse-Vec parse-response responses
-                highlighting-response ← find-Vec (λ r → primStringEquality "HighlightingInfo" <$> kind-decoder r or-else false) parsed-responses
-                tokens ← highlighting-info-decoder highlighting-response
+        let responses ,, new-buffer = unsnoc lines
+        let new-model = record model { stdout-buffer = new-buffer }
+        parsed-responses ← traverse-Vec parse-response responses
+        model' ,, cmds ← foldM (new-model ,, []) (to-list parsed-responses) λ (model ,, cmds) response → kind-decoder response >>= λ where
+            "HighlightingInfo" → do
+                tokens ← highlighting-info-decoder response
                 -- TODO: Eventually we should probably take better account of which command this update is a response to
                 path ← TextDocument.file-name <$> model .current-doc
-                pure (record new-model { loaded-files = model .loaded-files [ path ]:= tokens } , request-token-cmd)
+                pure (record model { loaded-files = model .loaded-files [ path ]:= tokens } ,, request-token-cmd ∷ cmds)
+            "ClearHighlighting" → do
+                path ← TextDocument.file-name <$> model .current-doc
+                pure (record model { loaded-files = model .loaded-files [ path ]:= [] } ,, cmds)
+            _ → pure (model ,, cmds)
+        pure (model' ,, batch cmds)
 
     -- open-webview-msg → model , open-panel model system panel-opened received-webview
     -- (panel-opened panel) → record model { panel = just panel } , none
@@ -109,16 +118,16 @@ update request-token-cmd send-over-stdin-cmd system model msg = trace msg $ case
     -- TODO: We need to return an empty list of tokens because vscode will wait for reply.
     --       If one isn't given then, it will just ignore subsequent replies. Ideally, we would use 
     --       reject with a busy message.
-    (token-request-msg doc return-tokens-cmd) → from-Maybe (model , return-tokens-cmd []) do
+    (token-request-msg doc return-tokens-cmd) → from-Maybe (model ,, return-tokens-cmd []) do
         tokens ← model .loaded-files !? TextDocument.file-name doc
         let highlighting-tokens = make-highlighting-tokens (system .vscode) doc tokens
-        pure $ model , return-tokens-cmd highlighting-tokens
+        pure $ model ,, return-tokens-cmd highlighting-tokens
 
-    (new-active-editor nothing) → record model { current-doc = nothing } , none
-    (new-active-editor (just editor)) → record model { current-doc = just $ TextEditor.document editor } , none
+    (new-active-editor nothing) → record model { current-doc = nothing } ,, none
+    (new-active-editor (just editor)) → record model { current-doc = just $ TextEditor.document editor } ,, none
 
     -- (received-webview wmsg) → model , none
-    _ → model , none
+    _ → model ,, none
 
 activate : System → IO ⊤
 activate = interact init capabilities update

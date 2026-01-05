@@ -39,7 +39,7 @@ postulate last : ∀ {A : Set} {n : ℕ} → Vec A (suc n) → A
 {-# COMPILE JS last = _ => _ => l => l[l.length - 1] #-}
 
 unsnoc : ∀ {A : Set} {n : ℕ} → Vec A (suc n) → (Vec A n × A)
-unsnoc xs = vec-init xs , last xs
+unsnoc xs = vec-init xs ,, last xs
 
 data Fin : ℕ → Set where
     zero : ∀ {n} → Fin (suc n)

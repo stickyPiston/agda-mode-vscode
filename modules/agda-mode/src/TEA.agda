@@ -34,17 +34,17 @@ provide-capability-commands :
     → (capabilities : List (Capability msg))
     → provided-commands-type capabilities (System → model → msg → model × Cmd msg)
     → IO (HList (map requirement-type capabilities) × (model → msg → model × Cmd msg))
-provide-capability-commands sys [] base-update = pure ([] , base-update sys)
+provide-capability-commands sys [] base-update = pure ([] ,, base-update sys)
 provide-capability-commands sys (record { new-requirement = new-requirement ; provided-type = nothing } ∷ capabilities) base-update = do
     requirement ← new-requirement sys
     smaller ← provide-capability-commands sys capabilities base-update
-    pure ((requirement ∷ Σ.proj₁ smaller) , Σ.proj₂ smaller)
+    pure (requirement ∷ fst smaller ,, snd smaller)
 provide-capability-commands sys (record
     { requirement-type = requirement-type ; new-requirement = new-requirement
     ; provided-type = just (provided-type , create-provided-type) ; register = register } ∷ capabilities) base-update = do
     requirement ← new-requirement sys
     smaller ← provide-capability-commands sys capabilities (base-update (create-provided-type requirement))
-    pure ((requirement ∷ Σ.proj₁ smaller) , Σ.proj₂ smaller)
+    pure (requirement ∷ fst smaller ,, snd smaller)
 
 postulate queue-ref : Set → Set
 
@@ -68,7 +68,7 @@ postulate push-subscription : extension-context → Disposable → IO ⊤
 update-and-process-commands : {model : Set} → (update : model → msg → model × Cmd msg) → queue-ref ((msg → IO ⊤) → IO ⊤) → Ref model → msg → IO ⊤
 update-and-process-commands update cmd-queue model-ref msg = do
     current-model ← get model-ref
-    new-model , record { actions = actions } ← pure (update current-model msg) -- pure to prevent double running of the potentially expensive update
+    new-model ,, record { actions = actions } ← pure (update current-model msg) -- pure to prevent double running of the potentially expensive update
     forM actions $ enqueue cmd-queue
     set model-ref new-model
     dequeue cmd-queue >>= λ where
@@ -84,11 +84,11 @@ interact :
     → (update : provided-commands-type capabilities (System → model → msg → model × Cmd msg))
     → System
     → IO ⊤
-interact {model} (init-model , init-cmds) capabilities update system = do
+interact {model} (init-model ,, init-cmds) capabilities update system = do
     model-ref ← new init-model
     cmd-queue ← new-queue-ref { (msg → IO ⊤) → IO ⊤ }
 
-    requirements , update-with-capabilities ← provide-capability-commands system capabilities update
+    requirements ,, update-with-capabilities ← provide-capability-commands system capabilities update
 
     forM (Cmd.actions init-cmds) λ action →
         action (update-and-process-commands update-with-capabilities cmd-queue model-ref)
