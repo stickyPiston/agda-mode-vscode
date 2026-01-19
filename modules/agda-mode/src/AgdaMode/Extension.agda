@@ -85,9 +85,6 @@ capabilities =
 kind-decoder : Decoder String
 kind-decoder = required "kind" string
 
-the : (A : Set) → A → A
-the A a = a
-
 update : Cmd Msg → (String → Cmd Msg) → System → Model → Msg → Model × Cmd Msg
 update request-token-cmd send-over-stdin-cmd system model msg = trace msg $ case msg of λ where
     load-file-msg → model ,, from-Maybe none do

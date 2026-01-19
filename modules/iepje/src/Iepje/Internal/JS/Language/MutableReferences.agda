@@ -12,23 +12,28 @@ open import Iepje.Internal.Utils
 open import Agda.Builtin.Unit
 
 -- Type of mutable references
-postulate Ref : Set → Set
+postulate Ref : ∀ {ℓ} → Set ℓ → Set ℓ
 
 -- Implemented in JS as an object with a single, mutable field, `val`
 
 -- Create a new mutable reference
-postulate new : ∀{A} → A → IO (Ref A)
-{-# COMPILE JS new = _ => a => krefa => krefa ({val : a}) #-}
+postulate new : ∀ {ℓ} {A : Set ℓ} → A → IO (Ref A)
+{-# COMPILE JS new = _ => _ => a => krefa => krefa ({val : a}) #-}
 
 -- Update the value stored in a mutable reference & return the new value
-postulate modify : ∀{A} → Ref A → (A → A) → IO A
-{-# COMPILE JS modify = _ => refa => f => kt => kt(refa.val = f(refa.val)) #-}
+postulate modify : ∀ {ℓ} {A : Set ℓ} → Ref A → (A → A) → IO A
+{-# COMPILE JS modify = _ => _ => refa => f => kt => kt(refa.val = f(refa.val)) #-}
+
+modify-⊤ : ∀ {ℓ} {A : Set ℓ} → Ref A → (A → A) → IO ⊤
+modify-⊤ ref f = do
+  modify ref f
+  pure tt
 
 -- Derived helper functions
-set : ∀{A} → Ref A → A → IO ⊤
+set : ∀ {ℓ} {A : Set ℓ} → Ref A → A → IO ⊤
 set r a = do
   modify r λ _ → a
   pure tt
 
-get : ∀{A} → Ref A → IO A
+get : ∀ {ℓ} {A : Set ℓ} → Ref A → IO A
 get r = modify r λ x → x

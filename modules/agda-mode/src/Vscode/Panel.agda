@@ -2,6 +2,7 @@ module Vscode.Panel where
 
 open import TEA.System
 open import TEA.Cmd as Cmd
+open import TEA.Capability
 open import Iepje.Internal.JS.Language.IO
 open import Agda.Builtin.Unit
 open import Prelude.List hiding (_++_)
@@ -10,6 +11,7 @@ open import Iepje.Internal.Utils using (_>>_)
 open import Prelude.String
 open import Iepje.Internal.Utils using (case_of_)
 open import Prelude.Maybe hiding (_>>=_ ; pure)
+open import Prelude.Sigma
 
 postulate text-document uri Panel : Set
 postulate createWebviewPanel : vscode-api → IO Panel
@@ -58,3 +60,11 @@ open-panel-cmd record { vscode = vscode ; context = context } panel-msg webview-
         (just wmsg) → dispatch (webview-msg wmsg)
         nothing     → pure tt
     pure tt
+
+panel : ∀ {msg} → (panel-msg-type : Set) → ⦃ c : Cloneable panel-msg-type ⦄ → String → Capability msg
+panel {msg} panel-msg-type html = record
+  { requirement-type = ⊤
+  ; new-requirement = λ _ → pure tt
+  ; provided-type = just ((panel-msg-type → Cmd msg) , λ _ panel-msg → new λ dispatch → {!   !})
+  ; register = {!   !}
+  }

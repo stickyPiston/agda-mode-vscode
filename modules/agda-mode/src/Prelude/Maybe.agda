@@ -1,7 +1,8 @@
 module Prelude.Maybe where
 
 open import Agda.Primitive using (Level)
-open import Prelude.List using (List ; map ; [] ; _∷_)
+open import Prelude.List
+open List using ([] ; _∷_)
 open import Agda.Builtin.String
 open import Agda.Builtin.Bool
 open import Prelude.Sigma
@@ -18,10 +19,6 @@ private variable
 data Maybe {ℓ} (A : Set ℓ) : Set ℓ where
     nothing : Maybe A
     just    : A → Maybe A
-
--- {-# COMPILE JS Maybe   = ((x, v) => x === undefined ? v["nothing"]() : v["just"](x)) #-}
--- {-# COMPILE JS nothing = undefined #-}
--- {-# COMPILE JS just    = x => x #-}
 
 infix 1 _or-else_
 _or-else_ : Maybe A → A → A
@@ -52,15 +49,15 @@ nothing >>= f = nothing
 just x >>= f = f x
 infixl 10 _>>=_
 
-justs : List (Maybe A) → List A
+justs : List.t (Maybe A) → List.t A
 justs [] = []
 justs (nothing ∷ as) = justs as
 justs (just a ∷ as) = a ∷ justs as
 
-map-maybe : (A → Maybe B) → List A → List B
-map-maybe f as = justs (map f as)
+map-maybe : (A → Maybe B) → List.t A → List.t B
+map-maybe f as = justs (List.map f as)
 
-traverse : (A → Maybe B) → List A → Maybe (List B)
+traverse : (A → Maybe B) → List.t A → Maybe (List.t B)
 traverse f [] = just []
 traverse f (a ∷ as) = ⦇ f a ∷ traverse f as ⦈
 
@@ -68,7 +65,7 @@ traverse-Vec : (A → Maybe B) → Vec A n → Maybe (Vec B n)
 traverse-Vec f [] = just []
 traverse-Vec f (a ∷ as) = ⦇ f a ∷ traverse-Vec f as ⦈
 
-foldM : B → List A → (B → A → Maybe B) → Maybe B
+foldM : B → List.t A → (B → A → Maybe B) → Maybe B
 foldM b [] f = just b
 foldM b (a ∷ as) f = do
     b' ← f b a
@@ -78,6 +75,10 @@ find-Vec : (A → Bool) → Vec A n → Maybe A
 find-Vec p [] = nothing
 find-Vec p (x ∷ xs) = if p x then just x else find-Vec p xs
 
-find : (A → Bool) → List A → Maybe A
+find : (A → Bool) → List.t A → Maybe A
 find p [] = nothing
 find p (x ∷ xs) = if p x then just x else find p xs
+
+maybe : (A → B) → B → Maybe A → B
+maybe _ b nothing  = b
+maybe f _ (just x) = f x

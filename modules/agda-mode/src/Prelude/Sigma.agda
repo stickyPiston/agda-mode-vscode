@@ -10,6 +10,7 @@ record Σ (A : Set ℓ₁) (B : A → Set ℓ₂) : Set (ℓ₁ ⊔ ℓ₂) wher
     field
         proj₁ : A
         proj₂ : B proj₁
+open Σ public
 
 {-# COMPILE JS Σ = (([a, b], v) => v["_,_"](a, b)) #-}
 {-# COMPILE JS _,_ = a => b => [a, b] #-}
