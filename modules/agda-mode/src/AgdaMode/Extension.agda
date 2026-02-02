@@ -32,7 +32,7 @@ open import Vscode.Window
 
 postulate trace : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} {B : Set ℓ₂} → A → B → B
 {-# COMPILE JS trace = _ => _ => _ => _ => a => b => {
-  try { console.log(a); return b } catch (e) { console.error(e); throw e }
+  try { console.log(a); return b } catch (e) { console.error(e) }
 } #-}
 
 traceM : ∀ {ℓ} {M : Set → Set ℓ} {A : Set} ⦃ m : Monad M ⦄ → A → M ⊤
@@ -79,7 +79,7 @@ spawn-agda update = do
   pure proc
 
 init : IO Model
-init = do
+init = try λ _ → do
   tokens-request-emitter ← EventEmitter.new
   pure record
     { panel = nothing
@@ -192,7 +192,7 @@ update recurse msg model = trace msg $ case msg of λ where
       (just tokens) → do
         let open TraversableA IO.Effectful.applicative
         stb ← SemanticTokensBuilder.new =<< Legend.build DefaultLegend
-        semantic-tokens ← make-highlighting-tokens doc tokens
+        let semantic-tokens = make-highlighting-tokens doc tokens
         mapA (SemanticTokensBuilder.push stb) semantic-tokens
         built-tokens ← SemanticTokensBuilder.build stb
         resolve built-tokens
@@ -208,8 +208,9 @@ update recurse msg model = trace msg $ case msg of λ where
 
 {-# TERMINATING #-}
 activate : IO ⊤
-activate = do
+activate = try λ _ → do
   model-ref ← init >>= IO.Ref.new
+  traceM "hello"
   m ← IO.Ref.get model-ref
   m' ← register m (update' model-ref)
   IO.Ref.set model-ref m'

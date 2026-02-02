@@ -14,16 +14,14 @@ module Effectful where
 
   private
     postulate pure : ∀ {ℓ} {A : Set ℓ} → A → IO A
-    {-# COMPILE JS pure = _ => _ => a => (imports, ka) => ka(a) #-}
+    {-# COMPILE JS pure = _ => _ => a => cont => cont(a) #-}
 
     infixl 8 _>>=_
     postulate _>>=_ : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} {B : Set ℓ₂} → IO A → (A → IO B) → IO B
-    {-# COMPILE JS _>>=_ = _ => _ => _ => _ => ma => a2mb => (imports, kb) => {
-      let ar;
-      ma(imports, a => ar = a);
-      let br;
-      a2mb(ar)(imports, b => br = b);
-      return kb(br);
+    {-# COMPILE JS _>>=_ = _ => _ => _ => _ => ma => a2mb => cont => {
+      let ar; ma(a => ar = a);
+      let br; a2mb(ar)(b => br = b);
+      return cont(br);
     } #-}
 
   private
@@ -36,7 +34,7 @@ module Effectful where
 
   private
     _<*>_ : IO (A → B) → IO A → IO B
-    _<*>_ io-f io-a = io-f >>= λ f → io-a >>= λ a → pure (f a)
+    _<*>_ io-f io-a = io-f >>= (_<$> io-a)
 
   instance
     applicative : Applicative {ℓ} IO
@@ -59,13 +57,13 @@ module Ref where
   postulate t : ∀ {ℓ} → Set ℓ → Set ℓ
 
   postulate new : {ℓ : Level} {A : Set ℓ} → A → IO (t A)
-  {-# COMPILE JS new = _ => _ => a => (imports, cont) => cont({ value: a }) #-}
+  {-# COMPILE JS new = _ => _ => a => cont => cont({ value: a }) #-}
 
   postulate get : {ℓ : Level} {A : Set ℓ} → t A → IO A
-  {-# COMPILE JS get = _ => _ => ref => (imports, cont) => cont(ref.value) #-}
+  {-# COMPILE JS get = _ => _ => ref => cont => cont(ref.value) #-}
 
   postulate set : {ℓ : Level} {A : Set ℓ} → t A → A → IO (Lift ℓ ⊤)
-  {-# COMPILE JS set = _ => _ => ref => a => (imports, cont) => { ref.value = a; cont(a => a["tt"]()) } #-}
+  {-# COMPILE JS set = _ => _ => ref => a => cont => { ref.value = a; cont(a => a["tt"]()) } #-}
 
   modify : {ℓ : Level} {A : Set ℓ} → (A → A) → t A → IO (Lift ℓ ⊤)
   modify f ref = get ref >>= set ref ∘ f

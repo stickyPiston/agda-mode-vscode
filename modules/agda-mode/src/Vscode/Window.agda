@@ -13,8 +13,8 @@ module TextEditor where
     postulate t : Set
 
     postulate active-editor : IO (Maybe t)
-    {-# COMPILE JS active-editor = ({vscode}, cont) => {
-      const e = vscode.window.activeTextEditor;
+    {-# COMPILE JS active-editor = cont => {
+      const e = AgdaModeImports.vscode.window.activeTextEditor;
       cont(e ? (a => a["just"](e)) : (a => a["nothing"]()));
     } #-}
 
@@ -22,5 +22,6 @@ module TextEditor where
     {-# COMPILE JS document = editor => editor.document #-}
 
 postulate on-did-change-active-text-editor-listener : (Maybe TextEditor.t → IO ⊤) → IO Disposable
-{-# COMPILE JS on-did-change-active-text-editor-listener = update => ({vscode}, cont) =>
-    cont(vscode.window.onDidChangeActiveTextEditor(editor => update(editor ? (a => a["just"](editor)) : (a => a["nothing"]()))(() => {}))) #-}
+{-# COMPILE JS on-did-change-active-text-editor-listener = update => cont =>
+    cont(AgdaModeImports.vscode.window.onDidChangeActiveTextEditor(editor =>
+      update(editor ? (a => a["just"](editor)) : (a => a["nothing"]()))(() => {}))) #-}

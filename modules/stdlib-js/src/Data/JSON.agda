@@ -42,11 +42,9 @@ postulate parse-json : String → Maybe JSON
         const o = JSON.parse(input);
         return a => a["just"](o);
     } catch (_e) {
-        console.log(_e);
         return a => a["nothing"]();
     }
 } #-}
-
 
 record Cloneable (A : Set) : Set where field
     encode : A → JSON 

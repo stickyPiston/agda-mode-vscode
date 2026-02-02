@@ -19,21 +19,23 @@ module Process where
     postulate t : Set
 
     postulate spawn : String → List String → IO t
-    {-# COMPILE JS spawn = cmd => args => ({process}, cont) => { const p = process.spawn(cmd, args) ; cont(p) } #-}
+    {-# COMPILE JS spawn = cmd => args => cont => {
+      const p = AgdaModeImports.process.spawn(cmd, args) ; cont(p)
+    } #-}
 
     postulate write : t → String → IO ⊤
-    {-# COMPILE JS write = process => chunk => (_, cont) => {
-      process.stdin.write(chunk);
-      process.once("drain", () => {});
+    {-# COMPILE JS write = proc => chunk => cont => {
+      proc.stdin.write(chunk);
+      proc.once("drain", () => {});
       cont(a => a["tt"]())
     } #-}
 
     postulate read : t → IO String
-    {-# COMPILE JS read = proc => (_, cont) => cont(proc.stdout.read()) #-}
+    {-# COMPILE JS read = proc => cont => cont(proc.stdout.read()) #-}
 
     -- TODO: Return Disposable
     postulate on-data : t → (Buffer.t → IO ⊤) → IO ⊤
-    {-# COMPILE JS on-data = proc => handler => (_, cont) => {
+    {-# COMPILE JS on-data = proc => handler => cont => {
         proc.stdout.on("data", data => { handler(data)(() => {}) });
         cont(a => a["tt"]())
     } #-}

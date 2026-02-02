@@ -19,19 +19,22 @@ module Uri where
 
 module Position where
     postulate t : Set
-    postulate new : Nat → Nat → IO t
+    -- TODO: Turn t into a record
+    postulate new : Nat → Nat → t
     postulate line char : t → Nat
 
-    {-# COMPILE JS new = line => char => ({ vscode }, cont) => cont(new vscode.Position(Number(line), Number(char))) #-}
+    {-# COMPILE JS new = line => char => new AgdaModeImports.vscode.Position(Number(line), Number(char)) #-}
     {-# COMPILE JS line = pos => BigInt(pos.line) #-}
     {-# COMPILE JS char = pos => BigInt(pos.character) #-}
 
 module Range where
     postulate t : Set
-    postulate new : Position.t → Position.t → IO t
+    -- Technically not pure, because === will still call two new objects different,
+    -- but for all intents and purposes it does act purely.
+    postulate new : Position.t → Position.t → t
     postulate start end : t → Position.t
 
-    {-# COMPILE JS new = start => end => ({ vscode }, cont) => cont(new vscode.Range(start, end)) #-}
+    {-# COMPILE JS new = start => end => new AgdaModeImports.vscode.Range(start, end) #-}
     {-# COMPILE JS start = range => range.start #-}
     {-# COMPILE JS end = range => range.end #-}
 
@@ -63,7 +66,7 @@ module ExtensionContext where
   postulate t : Set
 
   postulate get : IO t
-  {-# COMPILE JS get = ({context}, cont) => cont(context) #-}
+  {-# COMPILE JS get = cont => cont(context) #-}
 
   postulate extension-uri : t → Uri.t
   {-# COMPILE JS extension-uri = ctx => ctx.extensionUri #-}

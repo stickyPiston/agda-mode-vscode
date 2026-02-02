@@ -108,34 +108,30 @@ aspect→legend _ = "variable" , []
 legend : Legend.t
 legend = record { TokenType = DefaultTokenType ; Modifier = DefaultModifier }
 
-divide-ranges : TextDocument.t → Range.t → IO (List Range.t)
+divide-ranges : TextDocument.t → Range.t → List Range.t
 divide-ranges doc r = go (line (start r) - line (end r))
     where
         open Position
         open Range
-        open Monad IO.Effectful.monad
 
-        single-line-range : Nat → IO Range.t
+        single-line-range : Nat → Range.t
         single-line-range n =
             let full-line-range = TextLine.range (TextDocument.line-at doc (line (start r) + n))
              in Range.new
-                    (start (if n ==ⁿ zero then r else full-line-range))
-                    (end (if n ==ⁿ line (end r) - line (start r) then r else full-line-range))
+                  (start (if n ==ⁿ zero then r else full-line-range))
+                  (end (if n ==ⁿ line (end r) - line (start r) then r else full-line-range))
 
-        go : Nat → IO (List Range.t)
-        go zero = (_∷ []) <$> single-line-range zero
-        go (suc n) = ⦇ single-line-range n ∷ go n ⦈
+        go : Nat → List Range.t
+        go zero = [ single-line-range zero ]
+        go (suc n) = single-line-range n ∷ go n
 
-make-highlighting-tokens : TextDocument.t → List Token → IO (List SemanticToken.t)
-make-highlighting-tokens doc = (concat <$>_) ∘ mapA to-semantic-token
+make-highlighting-tokens : TextDocument.t → List Token → List SemanticToken.t
+make-highlighting-tokens doc = concat ∘ map to-semantic-token
     where
-      open Token
-      open Monad IO.Effectful.monad
-      open TraversableA IO.Effectful.applicative
-
-      to-semantic-token : Token → IO (List SemanticToken.t)
+      to-semantic-token : Token → (List SemanticToken.t)
       to-semantic-token token = do
-        original-range ← Range.new (TextDocument.position-at doc (token .start - 1)) (TextDocument.position-at doc (token .end - 1))
-        single-line-ranges ← divide-ranges doc original-range
-        let token-type , mods = aspect→legend (token .atoms)
-        pure $ map (λ r → record { range = r ; token-type = token-type ; modifiers = mods }) single-line-ranges
+        let open Token
+            original-range = Range.new (TextDocument.position-at doc (token .start - 1)) (TextDocument.position-at doc (token .end - 1))
+            single-line-ranges = divide-ranges doc original-range
+            token-type , mods = aspect→legend (token .atoms)
+         in map (λ r → record { range = r ; token-type = token-type ; modifiers = mods }) single-line-ranges

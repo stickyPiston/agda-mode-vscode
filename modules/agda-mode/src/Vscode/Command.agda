@@ -8,5 +8,5 @@ open import Data.IO
 open import Vscode.Common
 
 postulate register-command : String → IO ⊤ → IO Disposable
-{-# COMPILE JS register-command = name => action => (imports, cont) =>
-  cont(imports.vscode.commands.registerCommand(name, () => { action(imports, _ => {}) })) #-}
+{-# COMPILE JS register-command = name => action => cont =>
+  cont(AgdaModeImports.vscode.commands.registerCommand(name, () => { action(_ => {}) })) #-}

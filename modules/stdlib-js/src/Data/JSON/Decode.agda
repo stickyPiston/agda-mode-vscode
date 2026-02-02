@@ -21,17 +21,6 @@ import Data.Map as M
 
 open import Iepje.Internal.JS.Language.PrimitiveTypes using (number)
 
-private
-  postulate trace : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} {B : Set ℓ₂} → A → B → B
-  {-# COMPILE JS trace = _ => _ => _ => _ => a => b => {
-    try { console.log(a); return b } catch (e) { console.error(e); throw e }
-  } #-}
-
-  postulate try : ∀ {ℓ} {A : Set ℓ} → (⊤ → A) → A
-  {-# COMPILE JS try = _ => _ => thing => {
-    try { return thing(a => a["tt"]()) } catch (e) { console.error(e); throw e; }
-  } #-}
-
 private variable
     ℓ₁ ℓ₂ ℓ : Level
     A B : Set ℓ₁
@@ -78,7 +67,7 @@ module _ where
   float _ = nothing
 
   list : Decoder A → Decoder (List A)
-  list d (j-array xs) = try λ _ → mapA Maybe.applicative d xs
+  list d (j-array xs) = mapA Maybe.applicative d xs
   list _ _ = nothing
 
   private

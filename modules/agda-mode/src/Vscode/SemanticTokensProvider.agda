@@ -16,16 +16,16 @@ module Event where
   postulate t : Set → Set
 
   postulate listen : ∀ {A} → t A → (A → IO ⊤) → IO Disposable
-  {-# COMPILE JS listen = _ => event => handler => (_, cont) => cont(event(handler)) #-}
+  {-# COMPILE JS listen = _ => event => handler => cont => cont(event(handler)) #-}
 
 module EventEmitter where
     postulate t : Set → Set
 
     postulate new : ∀ {A} → IO (t A)
-    {-# COMPILE JS new = _ => ({vscode}, cont) => cont(new vscode.EventEmitter()) #-}
+    {-# COMPILE JS new = _ => cont => { cont(new AgdaModeImports.vscode.EventEmitter()) } #-}
 
     postulate fire : ∀ {A} → t A → A → IO ⊤
-    {-# COMPILE JS fire = _ => emitter => a => (_, cont) => { emitter.fire(a) ; cont(a => a["tt"]()) } #-}
+    {-# COMPILE JS fire = _ => emitter => a => cont => { emitter.fire(a) ; cont(a => a["tt"]()) } #-}
 
     postulate event : ∀ {A} → t A → Event.t A
     {-# COMPILE JS event = _ => emitter => emitter.event #-}
@@ -69,7 +69,7 @@ module Legend where
     postulate internal-t : Set
 
     private postulate build' : ∀ {n m} → Vec String n → Vec String m → IO internal-t
-    {-# COMPILE JS build' = _ => _ => types => mods => ({ vscode }, cont) => cont(new vscode.SemanticTokensLegend(types, mods)) #-}
+    {-# COMPILE JS build' = _ => _ => types => mods => cont => cont(new AgdaModeImports.vscode.SemanticTokensLegend(types, mods)) #-}
 
     build : t → IO internal-t
     build legend = build' (legend .TokenType .proj₂) (legend .Modifier .proj₂)
@@ -86,14 +86,14 @@ module SemanticTokensBuilder where
     postulate t : Set
 
     postulate new : Legend.internal-t → IO t
-    {-# COMPILE JS new = legend => ({vscode}, cont) => cont(new vscode.SemanticTokensBuilder(legend)) #-}
+    {-# COMPILE JS new = legend => cont => cont(new AgdaModeImports.vscode.SemanticTokensBuilder(legend)) #-}
 
     postulate build : t → IO SemanticTokens.t
-    {-# COMPILE JS build = t => (_, cont) => cont(t.build()) #-}
+    {-# COMPILE JS build = t => cont => cont(t.build()) #-}
 
     module Internal where
       postulate push : t → Range.t → String → List String → IO ⊤
-      {-# COMPILE JS push = t => r => tokenType => mod => (_, cont) => { t.push(r, tokenType, mod) ; cont(a => a["tt"]()) } #-}
+      {-# COMPILE JS push = t => r => tokenType => mod => cont => { t.push(r, tokenType, mod) ; cont(a => a["tt"]()) } #-}
 
     push : t → SemanticToken.t → IO ⊤
     push t record { range = range ; token-type = token-type ; modifiers = modifiers } =
@@ -103,8 +103,8 @@ module Promise where
   postulate t : Set → Set → Set
 
   postulate new : ∀ {E A} → ((resolve : A → IO ⊤) → (reject : E → IO ⊤) → IO ⊤) → IO (t E A)
-  {-# COMPILE JS new = _ => _ => b => (imports, cont) => new Promise((resolve, reject) => {
-    b(resolve)(reject)(imports, _ => {});
+  {-# COMPILE JS new = _ => _ => b => cont => new Promise((resolve, reject) => {
+    b(resolve)(reject)(_ => {});
   }) #-}
 
 module SemanticTokensProvider where
@@ -114,16 +114,16 @@ module SemanticTokensProvider where
   --   provide-document-semantic-tokens : ∀ {E} → TextDocument.t → CancellationToken.t → Promise.t E SemanticTokens.t
 
   postulate new : ∀ {E} → Maybe (Event.t ⊤) → (TextDocument.t → CancellationToken.t → IO (Promise.t E SemanticTokens.t)) → IO t
-  {-# COMPILE JS new = _ => e => f => (imports, cont) => cont({
+  {-# COMPILE JS new = _ => e => f => cont => cont({
     onDidChangeSemanticTokens: e({ "nothing": () => undefined, "just": a => a }),
-    provideDocumentSemanticTokens: (doc, token) => f(doc)(token)(imports, _ => {})
+    provideDocumentSemanticTokens: (doc, token) => f(doc)(token)(_ => {})
   }) #-}
 
   open import Data.JSON
 
   private postulate register' : JSON → t → Legend.internal-t → IO Disposable
-  {-# COMPILE JS register' = selector => stp => legend => ({vscode}, cont) => {
-    cont(vscode.languages.registerDocumentSemanticTokensProvider(selector, stp, legend))
+  {-# COMPILE JS register' = selector => stp => legend => cont => {
+    cont(AgdaModeImports.vscode.languages.registerDocumentSemanticTokensProvider(selector, stp, legend))
   } #-}
 
   open import Effect.Monad
