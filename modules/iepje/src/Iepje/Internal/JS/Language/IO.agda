@@ -23,6 +23,7 @@ postulate IO : ∀ {ℓ} → Set ℓ → Set ℓ
 postulate pure : ∀ {ℓ} {A : Set ℓ} → A → IO A
 {-# COMPILE JS pure = _ => _ => a => ka => ka(a) #-}
 
+infixl 24 _>>=_
 postulate _>>=_ : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} {B : Set ℓ₂} → IO A → (A → IO B) → IO B
 
 -- This implementation generates a JS call stack with depth O(total number of _>>=_ evalauted)

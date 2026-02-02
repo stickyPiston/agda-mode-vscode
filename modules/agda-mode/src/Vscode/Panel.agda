@@ -1,60 +1,113 @@
 module Vscode.Panel where
 
-open import TEA.System
-open import TEA.Cmd as Cmd
-open import Iepje.Internal.JS.Language.IO
 open import Agda.Builtin.Unit
-open import Prelude.List hiding (_++_)
-open import Prelude.JSON
-open import Iepje.Internal.Utils using (_>>_)
-open import Prelude.String
-open import Iepje.Internal.Utils using (case_of_)
-open import Prelude.Maybe hiding (_>>=_ ; pure)
 
-postulate text-document uri Panel : Set
-postulate createWebviewPanel : vscode-api → IO Panel
-{-# COMPILE JS createWebviewPanel = vscode => cont => cont(vscode.window.createWebviewPanel("window", "window", vscode.ViewColumn.One, { enableScripts: true }))  #-}
+open import Data.IO as IO
 
-postulate setHtml : String → Panel → IO ⊤
-{-# COMPILE JS setHtml = html => panel => cont => { panel.webview.html = html; cont(a => a["tt"]()) } #-}
+open import Data.String
+open import Data.Maybe
+open import Agda.Builtin.Bool
+open import Data.Int
+open import Data.List
+open import Agda.Builtin.Float
+open import Data.JSON hiding (encode)
+open import Data.Map
 
-postulate extensionUri : extension-context → String
-{-# COMPILE JS extensionUri = context => context.extensionUri #-}
+open import Vscode.Common
 
-postulate joinPath : vscode-api → List String → String
-{-# COMPILE JS joinPath = vscode => parts => vscode.Uri.joinPath(...parts) #-}
+module ViewColumn where
+  data t : Set where
+    beside active one two three four five six seven eight nine : t
 
-postulate toWebviewUri : Panel → String → String
-{-# COMPILE JS toWebviewUri = panel => url => panel.webview.asWebviewUri(url) #-}
+  encode : t → Int
+  encode beside = - + 2
+  encode active = - + 1
+  encode one = + 1
+  encode two = + 2
+  encode three = + 3
+  encode four = + 4
+  encode five = + 5
+  encode six = + 6
+  encode seven = + 7
+  encode eight = + 8
+  encode nine = + 9
 
--- This should prolly be IO
-postulate current-text-documents : vscode-api → List text-document
-{-# COMPILE JS current-text-documents = vscode => vscode.workspace.textDocuments #-}
+module WebviewOptions where
+  record t : Set where field
+    enable-command-uris : List String
+    enable-forms enable-scripts : Bool
+    -- local-resource-roots : List Uri.t
+    -- port-mapping : List WebviewPortMapping.t
+  open t public
 
-postulate get-document-uri : text-document → uri
-{-# COMPILE JS get-document-uri = doc => doc.uri #-}
+  default : t
+  default = record
+    { enable-command-uris = []
+    ; enable-forms = false
+    ; enable-scripts = false
+    }
 
-postulate uri-path uri-scheme : uri → String
-{-# COMPILE JS uri-path = uri => uri.path #-}
-{-# COMPILE JS uri-scheme = uri => uri.scheme #-}
-    
-postulate postMessage : Panel → JSON → IO ⊤
-{-# COMPILE JS postMessage = panel => json => cont => { panel.webview.postMessage(json); cont(null) } #-}
+  encode : t → JSON
+  encode t = j-object
+    (  ("enableCommandUris" ↦ j-array (map j-string (t .enable-command-uris)))
+    <> ("enableForms" ↦ j-bool (t .enable-forms))
+    <> ("enableScripts" ↦ j-bool (t .enable-scripts))
+    )
 
-postulate onMessage : Panel → extension-context → (JSON → IO ⊤) → IO ⊤
-{-# COMPILE JS onMessage = panel => ctx => action => cont => { panel.webview.onDidReceiveMessage(msg => action(msg)(() => {}), undefined, ctx.subscriptions); cont(a => a["tt"]()); } #-}
-    
-sendMessage : ∀ {msg} {A} ⦃ c : Cloneable A ⦄ → Panel → A → Cmd msg
-sendMessage panel m = Cmd.new λ _ → postMessage panel (encode m)
+module ShowOptions where
+  record t : Set where field
+    preserve-focus : Bool
+    view-column : ViewColumn.t
+  open t public
 
-open-panel-cmd : ∀ {msg webview-msg} ⦃ c : Cloneable webview-msg ⦄ → System → (Panel → msg) → (webview-msg → msg) → Cmd msg
-open-panel-cmd record { vscode = vscode ; context = context } panel-msg webview-msg = Cmd.new λ dispatch → do
-    panel ← createWebviewPanel vscode
-    dispatch (panel-msg panel)
-    setHtml ("<html><body><main></main><script type=\"module\" src="
-        ++ toWebviewUri panel (joinPath vscode (extensionUri context ∷ "out" ∷ "jAgda.AgdaMode.Webview.mjs" ∷ []))
-        ++ "></script></body></html>") panel
-    onMessage panel context λ json → case (decode json) of λ where
-        (just wmsg) → dispatch (webview-msg wmsg)
-        nothing     → pure tt
-    pure tt
+  postulate fromℤ : Int → Float
+  {-# COMPILE JS fromℤ = Number #-}
+
+  encode : t → JSON
+  encode t = j-object
+    (  ("preserveFocus" ↦ j-bool (t .preserve-focus))
+    <> ("viewColumn" ↦ j-number (fromℤ (ViewColumn.encode (t .view-column))))
+    )
+
+module Panel where
+  open import Function
+  open import Data.JSON
+  open import Level
+
+  private variable ℓ : Level
+
+  postulate t : Set → Set
+
+  module Internal where
+    postulate create : ∀ {A} → String → String → JSON → JSON → IO (t A)
+    {-# COMPILE JS create = _ => viewType => title => showOptions => options => ({vscode}, cont) =>
+      cont(vscode.window.createWebviewPanel(viewType, title, showOptions, options)) #-}
+
+    postulate post-message : ∀ {A} → t A → JSON → IO ⊤
+    {-# COMPILE JS post-message = panel => json => (_, cont) => { panel.webview.postMessage(json); cont(a => a["tt"]()) } #-}
+
+    postulate on-message : ∀ {A} → t A → (JSON → IO ⊤) → IO Disposable
+    {-# COMPILE JS on-message = _ => panel => listener => (imports, cont) =>
+      cont(panel.webview.onDidReceiveMessage(msg => listener(msg)(imports, _ => {}))) #-}
+
+  postulate set-html : ∀ {A} → t A → String → IO ⊤
+  {-# COMPILE JS set-html = _ => panel => html => (_, cont) => { panel.webview.html = html; cont(a => a["tt"]()) } #-}
+
+  postulate to-webview-uri : ∀ {A} → t A → Uri.t → Uri.t
+  {-# COMPILE JS to-webview-uri = _ => panel => url => panel.webview.asWebviewUri(url) #-}
+
+  create : ∀ {A} ⦃ c : Cloneable A ⦄ → String → String → ShowOptions.t → WebviewOptions.t → IO (t A)
+  create view-type title show-options options =
+    Internal.create view-type title (ShowOptions.encode show-options) (WebviewOptions.encode options)
+
+  send-message : ∀ {A} ⦃ c : Cloneable A ⦄ → t A → A → IO ⊤
+  send-message panel a = Internal.post-message panel (encode a)
+
+  open import Effect.Monad
+  open IO.Effectful
+  open Monad ⦃ ... ⦄
+
+  on-message : ∀ {A} ⦃ c : Cloneable A ⦄ → t A → (A → IO ⊤) → IO Disposable
+  on-message panel listener = Internal.on-message panel λ json → case decode json of λ where
+    nothing → pure tt
+    (just a) → listener a

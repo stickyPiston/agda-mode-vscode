@@ -1,51 +1,60 @@
 module Vscode.SemanticTokensProvider where
 
-open import Prelude.List
-open import Prelude.JSON
-open import Prelude.Sigma
-open import Prelude.Maybe hiding (_<$>_ ; _>>=_ ; pure)
-open import Prelude.Nat
-open import Agda.Builtin.String
-open import TEA.System
-open System
-open import Iepje.Internal.JS.Language.IO
+open import Data.List
+open import Data.Maybe using (Maybe ; just ; nothing)
+open import Agda.Builtin.Nat
+open import Data.String
 open import Agda.Builtin.Unit
-open import TEA.Capability
-import TEA.Cmd as Cmd
-open import TEA.Cmd using (Cmd)
-open import Iepje.Internal.Utils using (_$_ ; forM ; _>>_ ; _<$>_)
-open import Prelude.Vec hiding (map)
-open import Prelude.Map
+open import Data.Product
+open import Data.Vec
 
-private postulate trace : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} {B : Set ℓ₂} → A → B → B
-{-# COMPILE JS trace = _ => _ => _ => _ => thing => val => { console.log(thing) ; return val } #-}
+open import Data.IO as IO
 
--- TODO: If there is a use for it, then allow event emitter to have a type parameter
+open import Vscode.Common
+
+module Event where
+  postulate t : Set → Set
+
+  postulate listen : ∀ {A} → t A → (A → IO ⊤) → IO Disposable
+  {-# COMPILE JS listen = _ => event => handler => (_, cont) => cont(event(handler)) #-}
+
 module EventEmitter where
+    postulate t : Set → Set
+
+    postulate new : ∀ {A} → IO (t A)
+    {-# COMPILE JS new = _ => ({vscode}, cont) => cont(new vscode.EventEmitter()) #-}
+
+    postulate fire : ∀ {A} → t A → A → IO ⊤
+    {-# COMPILE JS fire = _ => emitter => a => (_, cont) => { emitter.fire(a) ; cont(a => a["tt"]()) } #-}
+
+    postulate event : ∀ {A} → t A → Event.t A
+    {-# COMPILE JS event = _ => emitter => emitter.event #-}
+
+module DocumentSelector where
+  open import Data.JSON hiding (encode)
+  open import Data.Map
+
+  data t : Set where
+    language scheme path-pattern : String → t
+    _∩_ : t → t → t
+
+  encode : t → JSON
+  encode filter = j-object (kvs filter)
+      where
+          kvs : t → StringMap.t JSON
+          kvs (language x) = "language" ↦ j-string x
+          kvs (scheme x) = "scheme" ↦ j-string x
+          kvs (path-pattern x) = "pattern" ↦ j-string x
+          kvs (l ∩ r) = kvs l <> kvs r
+open DocumentSelector using (language ; scheme ; path-pattern ; _∩_) public
+
+module CancellationToken where
+  postulate t : Set
+
+module SemanticTokens where
     postulate t : Set
 
-    postulate new : vscode-api → IO t
-    {-# COMPILE JS new = vscode => cont => cont(new vscode.EventEmitter()) #-}
-
-    postulate fire : t → IO ⊤
-    {-# COMPILE JS fire = emitter => cont => { emitter.fire() ; cont(a => a["tt"]()) } #-}
-
-data LanguageFilter : Set where
-    language scheme path-pattern : String → LanguageFilter
-    _∩_ : LanguageFilter → LanguageFilter → LanguageFilter
-
-encode-language-filter : LanguageFilter → JSON
-encode-language-filter filter = j-object (kvs filter)
-    where
-        kvs : LanguageFilter → StringMap JSON
-        kvs (language x) = "language" ↦ j-string x
-        kvs (scheme x) = "scheme" ↦ j-string x
-        kvs (path-pattern x) = "pattern" ↦ j-string x
-        kvs (l ∩ r) = kvs l <> kvs r
-
-postulate CancellationToken SemanticTokens : Set
-
-DefaultTokenType DefaultModifier : Σ[ n ∈ ℕ ] Vec String n
+DefaultTokenType DefaultModifier : Σ Nat (Vec String)
 DefaultTokenType = 23 , ("namespace" ∷ "class" ∷ "enum" ∷ "interface" ∷ "struct" ∷ "typeParameter" ∷ "type" ∷ "parameter"
       ∷ "variable" ∷ "property" ∷ "enumMember" ∷ "decorator" ∷ "event" ∷ "function" ∷ "method" ∷ "macro" ∷ "label"
       ∷ "comment" ∷ "string" ∷ "keyword" ∷ "number" ∷ "regexp" ∷ "operator" ∷ [])
@@ -54,34 +63,16 @@ DefaultModifier = 10 , ("declaration" ∷ "definition" ∷ "readonly" ∷ "stati
 
 module Legend where
     record t : Set where field
-        TokenType Modifier : Σ[ n ∈ ℕ ] Vec String n
+        TokenType Modifier : Σ Nat (Vec String)
     open t public
 
     postulate internal-t : Set
 
-    private postulate build' : ∀ {n m} → Vec String n → Vec String m → vscode-api → internal-t
-    {-# COMPILE JS build' = _ => _ => types => mods => vscode => new vscode.SemanticTokensLegend(types, mods) #-}
+    private postulate build' : ∀ {n m} → Vec String n → Vec String m → IO internal-t
+    {-# COMPILE JS build' = _ => _ => types => mods => ({ vscode }, cont) => cont(new vscode.SemanticTokensLegend(types, mods)) #-}
 
-    build : t → vscode-api → internal-t
-    build legend = build' (legend .TokenType .Σ.proj₂) (legend .Modifier .Σ.proj₂)
-
-module Position where
-    postulate t : Set
-    postulate new : vscode-api → ℕ → ℕ → t
-    postulate line char : t → ℕ
-
-    {-# COMPILE JS new = vscode => line => char => new vscode.Position(Number(line), Number(char)) #-}
-    {-# COMPILE JS line = pos => BigInt(pos.line) #-}
-    {-# COMPILE JS char = pos => BigInt(pos.character) #-}
-
-module Range where
-    postulate t : Set
-    postulate new : vscode-api → Position.t → Position.t → t
-    postulate start end : t → Position.t
-
-    {-# COMPILE JS new = vscode => start => end => new vscode.Range(start, end) #-}
-    {-# COMPILE JS start = range => range.start #-}
-    {-# COMPILE JS end = range => range.end #-}
+    build : t → IO internal-t
+    build legend = build' (legend .TokenType .proj₂) (legend .Modifier .proj₂)
 
 module SemanticToken where
     open Legend.t
@@ -91,66 +82,53 @@ module SemanticToken where
         modifiers : List String
     open t public
 
-module TextLine where
-    postulate t : Set
-
-    postulate range : t → Range.t
-    {-# COMPILE JS range = line => line.range #-}
-
-module TextDocument where
-    postulate t : Set
-
-    postulate get-text : t → String
-    {-# COMPILE JS get-text = doc => doc.getText() #-}
-
-    postulate position-at : t → ℕ → Position.t
-    {-# COMPILE JS position-at = doc => n => doc.positionAt(Number(n)) #-}
-
-    postulate line-at : t → ℕ → TextLine.t
-    {-# COMPILE JS line-at = doc => n => doc.lineAt(Number(n)) #-}
-
-    postulate file-name : t → String
-    {-# COMPILE JS file-name = doc => doc.fileName #-}
-
 module SemanticTokensBuilder where
     postulate t : Set
 
-    postulate new : vscode-api → Legend.internal-t → IO t
-    {-# COMPILE JS new = vscode => legend => cont => cont(new vscode.SemanticTokensBuilder(legend)) #-}
+    postulate new : Legend.internal-t → IO t
+    {-# COMPILE JS new = legend => ({vscode}, cont) => cont(new vscode.SemanticTokensBuilder(legend)) #-}
 
-    postulate build : t → IO SemanticTokens
-    {-# COMPILE JS build = t => cont => cont(t.build()) #-}
+    postulate build : t → IO SemanticTokens.t
+    {-# COMPILE JS build = t => (_, cont) => cont(t.build()) #-}
 
-    postulate push : t → Range.t → String → List String → IO ⊤
-    {-# COMPILE JS push = t => r => tokenType => mod => cont => { t.push(r, tokenType, mod) ; cont(a => a["tt"]()) } #-}
+    module Internal where
+      postulate push : t → Range.t → String → List String → IO ⊤
+      {-# COMPILE JS push = t => r => tokenType => mod => (_, cont) => { t.push(r, tokenType, mod) ; cont(a => a["tt"]()) } #-}
 
--- TODO: Handle cancellations
-postulate register-semantic-tokens-provider : vscode-api → JSON → EventEmitter.t → (TextDocument.t → CancellationToken → (return : SemanticTokens → IO ⊤) → IO ⊤) → Legend.internal-t → IO Disposable
-{-# COMPILE JS register-semantic-tokens-provider = (vscode => selector => onChangeEmitter => provider => legend => cont => {
-    cont(vscode.languages.registerDocumentSemanticTokensProvider(
-        selector,
-        {
-            onDidChangeSemanticTokens: onChangeEmitter.event,
-            provideDocumentSemanticTokens: (document, token) => new Promise((resolve, reject) => { provider(document)(token)(resolve)(() => {}) }),
-        },
-        legend
-))}) #-}
+    push : t → SemanticToken.t → IO ⊤
+    push t record { range = range ; token-type = token-type ; modifiers = modifiers } =
+      Internal.push t range token-type modifiers
 
-semantic-tokens-provider : ∀ {msg} → Legend.t
-    → (TextDocument.t → (List SemanticToken.t → Cmd msg) → msg)
-    → LanguageFilter → Capability msg
-semantic-tokens-provider {msg} legend on-request-msg selector = record
-    { requirement-type = EventEmitter.t
-    ; new-requirement = λ sys → EventEmitter.new (sys .vscode)
-    ; provided-type = just (Cmd msg , λ on-change-emitter → Cmd.new λ  _ → EventEmitter.fire on-change-emitter)
-    ; register = λ system requirement update →
-        let vscode = system .vscode
-            provider = λ doc token return → update $ on-request-msg doc λ tokens → Cmd.new λ _ → do
-                builder ← SemanticTokensBuilder.new vscode (Legend.build legend vscode)
-                forM tokens λ t → SemanticTokensBuilder.push builder
-                    (t .SemanticToken.range)
-                    (t .SemanticToken.token-type)
-                    (t .SemanticToken.modifiers)
-                SemanticTokensBuilder.build builder >>= return
-         in just <$> register-semantic-tokens-provider vscode (encode-language-filter selector) requirement provider (Legend.build legend vscode)
-    }
+module Promise where
+  postulate t : Set → Set → Set
+
+  postulate new : ∀ {E A} → ((resolve : A → IO ⊤) → (reject : E → IO ⊤) → IO ⊤) → IO (t E A)
+  {-# COMPILE JS new = _ => _ => b => (imports, cont) => new Promise((resolve, reject) => {
+    b(resolve)(reject)(imports, _ => {});
+  }) #-}
+
+module SemanticTokensProvider where
+  postulate t : Set
+  -- private record t : Set₁ where field
+  --   on-did-change-semantic-tokens : Maybe (Event.t ⊤)
+  --   provide-document-semantic-tokens : ∀ {E} → TextDocument.t → CancellationToken.t → Promise.t E SemanticTokens.t
+
+  postulate new : ∀ {E} → Maybe (Event.t ⊤) → (TextDocument.t → CancellationToken.t → IO (Promise.t E SemanticTokens.t)) → IO t
+  {-# COMPILE JS new = _ => e => f => (imports, cont) => cont({
+    onDidChangeSemanticTokens: e({ "nothing": () => undefined, "just": a => a }),
+    provideDocumentSemanticTokens: (doc, token) => f(doc)(token)(imports, _ => {})
+  }) #-}
+
+  open import Data.JSON
+
+  private postulate register' : JSON → t → Legend.internal-t → IO Disposable
+  {-# COMPILE JS register' = selector => stp => legend => ({vscode}, cont) => {
+    cont(vscode.languages.registerDocumentSemanticTokensProvider(selector, stp, legend))
+  } #-}
+
+  open import Effect.Monad
+  open IO.Effectful
+  open Monad ⦃ ... ⦄
+
+  register : DocumentSelector.t → t → Legend.t → IO Disposable
+  register selector stp legend = Legend.build legend >>= register' (DocumentSelector.encode selector) stp

@@ -1,36 +1,26 @@
 module Vscode.Window where
 
-open import TEA.Capability
-open import TEA.System
 open import Agda.Builtin.Unit
-open import Prelude.Maybe using (Maybe ; nothing ; just)
-open import Prelude.Function
-open import Iepje.Internal.JS.Language.IO
-open import Iepje.Internal.Utils using (_>>_ ; _<$>_)
-open import Vscode.SemanticTokensProvider
+open import Data.Maybe
+open import Function
 
-private postulate trace : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} {B : Set ℓ₂} → A → B → B
-{-# COMPILE JS trace = _ => _ => _ => _ => thing => val => { console.log(thing) ; return val } #-}
+open import Data.IO
+
+open import Vscode.Common
+open import Vscode.SemanticTokensProvider
 
 module TextEditor where
     postulate t : Set
 
-    postulate active-editor : vscode-api → IO t
-    {-# COMPILE JS active-editor = vscode => cont => cont(vscode.window.activeTextEditor) #-}
+    postulate active-editor : IO (Maybe t)
+    {-# COMPILE JS active-editor = ({vscode}, cont) => {
+      const e = vscode.window.activeTextEditor;
+      cont(e ? (a => a["just"](e)) : (a => a["nothing"]()));
+    } #-}
 
     postulate document : t → TextDocument.t
     {-# COMPILE JS document = editor => editor.document #-}
 
-postulate on-did-change-active-text-editor-listener : vscode-api → (Maybe TextEditor.t → IO ⊤) → IO Disposable
-{-# COMPILE JS on-did-change-active-text-editor-listener = vscode => update => cont =>
+postulate on-did-change-active-text-editor-listener : (Maybe TextEditor.t → IO ⊤) → IO Disposable
+{-# COMPILE JS on-did-change-active-text-editor-listener = update => ({vscode}, cont) =>
     cont(vscode.window.onDidChangeActiveTextEditor(editor => update(editor ? (a => a["just"](editor)) : (a => a["nothing"]()))(() => {}))) #-}
-
-on-did-change-active-text-editor : ∀ {msg} → (Maybe TextEditor.t → msg) → Capability msg
-on-did-change-active-text-editor text-editor-msg = record
-  { requirement-type = ⊤
-  ; new-requirement = λ x → pure tt
-  ; provided-type = nothing
-  ; register = λ sys _ update → do
-        TextEditor.active-editor (sys .vscode) >>= (update ∘ text-editor-msg ∘ just)
-        just <$> on-did-change-active-text-editor-listener (sys .vscode) (update ∘ text-editor-msg)
-  }

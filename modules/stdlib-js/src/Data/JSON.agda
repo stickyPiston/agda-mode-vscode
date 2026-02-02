@@ -1,13 +1,11 @@
-module Prelude.JSON where
+module Data.JSON where
 
 open import Iepje.Internal.JS.Language.PrimitiveTypes
+open import Data.Map
 
-open import Prelude.Sigma using (_×_)
-open import Prelude.Maybe
-open import Prelude.Nat
-open import Prelude.Map
-
-open import Agda.Builtin.List
+open import Data.List
+open import Data.Maybe
+open import Data.String
 open import Agda.Builtin.Equality
 
 -- Using the costructors of the JSON data type, we can encode
@@ -20,7 +18,7 @@ data JSON : Set where
     j-bool : boolean → JSON
     j-number : number → JSON
     j-array : List JSON → JSON
-    j-object : StringMap JSON → JSON
+    j-object : StringMap.t JSON → JSON
 
 {-# COMPILE JS JSON = ((x, v) =>
       x === null             ? v["j-null"]()
@@ -38,7 +36,18 @@ data JSON : Set where
 {-# COMPILE JS j-array = l => [...l] #-}
 {-# COMPILE JS j-object = kvs => kvs #-}
 
--- 
+postulate parse-json : String → Maybe JSON
+{-# COMPILE JS parse-json = input => {
+    try {
+        const o = JSON.parse(input);
+        return a => a["just"](o);
+    } catch (_e) {
+        console.log(_e);
+        return a => a["nothing"]();
+    }
+} #-}
+
+
 record Cloneable (A : Set) : Set where field
     encode : A → JSON 
     decode : JSON → Maybe A

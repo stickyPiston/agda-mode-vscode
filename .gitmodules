@@ -1,3 +1,0 @@
-[submodule "modules/agda-stdlib"]
-	path = modules/agda-stdlib
-	url = https://github.com/agda/agda-stdlib.git

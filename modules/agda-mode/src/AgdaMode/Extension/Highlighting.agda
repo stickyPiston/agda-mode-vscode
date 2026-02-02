@@ -1,18 +1,23 @@
 module AgdaMode.Extension.Highlighting where
 
-open import Prelude.List
-open import Prelude.Nat
-open import Prelude.String hiding (_==_)
-open import Prelude.Maybe using (Maybe ; just ; nothing)
-open import Prelude.JSON.Decode
-open import Prelude.JSON
-open import Iepje.Internal.Utils using (case_of_ ; if_then_else_)
-open import Prelude.Function
+open import Effect.Applicative
+open import Effect.Monad
+
+open import Data.JSON.Decode as Decode
+open import Data.JSON
+import Data.IO as IO
+open IO using (IO)
+
+open import Data.List
+open import Data.Product
+open import Agda.Builtin.Nat renaming (_==_ to _==ⁿ_)
+open import Data.String
+open import Data.Maybe using (Maybe ; just ; nothing)
 open import Agda.Builtin.Bool
+open import Function
+
+open import Vscode.Common
 open import Vscode.SemanticTokensProvider
-open import Prelude.Sigma
-open import Prelude.Function
-open import TEA.System
 
 private postulate trace : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} {B : Set ℓ₂} → A → B → B
 {-# COMPILE JS trace = _ => _ => _ => _ => thing => val => { console.log(thing) ; return val } #-}
@@ -46,10 +51,11 @@ record DefinitionSite : Set where
     constructor mk-DefinitionSite
     field
         filepath : String
-        position : ℕ
+        position : Nat
 
 definition-site-decoder : Decoder DefinitionSite
 definition-site-decoder = ⦇ mk-DefinitionSite (required "filepath" string) (required "position" nat) ⦈
+  where open Applicative Decode.applicative
 
 record Token : Set where
     constructor mk-Token
@@ -57,7 +63,7 @@ record Token : Set where
         atoms : List Aspect
         definition-site : Maybe DefinitionSite
         note : String
-        start end : ℕ
+        start end : Nat
         token-based : Bool
 
 token-decoder : Decoder Token
@@ -66,58 +72,70 @@ token-decoder = ⦇ mk-Token
     (optional-null "definitionSite" definition-site-decoder)
     (required "note" string)
     (required "range" (list nat |> index 0)) (required "range" (list nat |> index 1))
-    (required "tokenBased" string <&> primStringEquality "TokenBased") ⦈
+    (required "tokenBased" string <&> ("TokenBased" ==_)) ⦈
+  where open Applicative applicative
 
 highlighting-info-decoder : Decoder (List Token)
-highlighting-info-decoder =  list token-decoder |> required "payload" |> required "info"
+highlighting-info-decoder =
+  required "kind" string >>= λ where
+    "HighlightingInfo" → list token-decoder |> required "payload" |> required "info"
+    _ → ⊘
+  where open MonadPlus monad-plus
 
 -- Conversion function from highlighting atoms to legend token types + modifiers
 aspect→legend : List Aspect → String × List String
-aspect→legend (symbol ∷ _) = "operator" ,, []
-aspect→legend (inductive-constructor ∷ _) = "enumMember" ,, []
-aspect→legend (string' ∷ _) = "string" ,, []
-aspect→legend (postulate' ∷ _) = "function" ,, []
-aspect→legend (function ∷ _) = "function" ,, []
-aspect→legend (comment ∷ _) = "comment" ,, []
-aspect→legend (keyword ∷ _) = "keyword" ,, []
-aspect→legend (number ∷ _) = "number" ,, []
-aspect→legend (primitive-type ∷ _) = "type" ,, [ "defaultLibrary" ]
-aspect→legend (dead-code ∷ _) = "comment" ,, []
-aspect→legend (catchall-clause ∷ _) = "operator" ,, []
-aspect→legend (bound ∷ _) = "parameter" ,, []
-aspect→legend (coinductive-constructor ∷ _) = "enumMember" ,, []
-aspect→legend (datatype ∷ _) = "type" ,, []
-aspect→legend (field' ∷ _) = "property" ,, []
-aspect→legend (module' ∷ _) = "namespace" ,, []
-aspect→legend (primitive' ∷ _) = "string" ,, [ "defaultLibrary" ]
-aspect→legend (record' ∷ _) = "struct" ,, []
-aspect→legend (operator ∷ _) = "operator" ,, []
-aspect→legend _ = "variable" ,, []
+aspect→legend (symbol ∷ _) = "operator" , []
+aspect→legend (inductive-constructor ∷ _) = "enumMember" , []
+aspect→legend (string' ∷ _) = "string" , []
+aspect→legend (postulate' ∷ _) = "function" , []
+aspect→legend (function ∷ _) = "function" , []
+aspect→legend (comment ∷ _) = "comment" , []
+aspect→legend (keyword ∷ _) = "keyword" , []
+aspect→legend (number ∷ _) = "number" , []
+aspect→legend (primitive-type ∷ _) = "type" , [ "defaultLibrary" ]
+aspect→legend (dead-code ∷ _) = "comment" , []
+aspect→legend (catchall-clause ∷ _) = "operator" , []
+aspect→legend (bound ∷ _) = "parameter" , []
+aspect→legend (coinductive-constructor ∷ _) = "enumMember" , []
+aspect→legend (datatype ∷ _) = "type" , []
+aspect→legend (field' ∷ _) = "property" , []
+aspect→legend (module' ∷ _) = "namespace" , []
+aspect→legend (primitive' ∷ _) = "string" , [ "defaultLibrary" ]
+aspect→legend (record' ∷ _) = "struct" , []
+aspect→legend (operator ∷ _) = "operator" , []
+aspect→legend _ = "variable" , []
 
 legend : Legend.t
 legend = record { TokenType = DefaultTokenType ; Modifier = DefaultModifier }
 
-divide-ranges : vscode-api → TextDocument.t → Range.t → List Range.t
-divide-ranges vscode doc r = go (line (start r) - line (end r))
+divide-ranges : TextDocument.t → Range.t → IO (List Range.t)
+divide-ranges doc r = go (line (start r) - line (end r))
     where
         open Position
         open Range
+        open Monad IO.Effectful.monad
 
-        single-line-range : ℕ → Range.t
+        single-line-range : Nat → IO Range.t
         single-line-range n =
             let full-line-range = TextLine.range (TextDocument.line-at doc (line (start r) + n))
-             in Range.new vscode
-                    (start (if n == zero then r else full-line-range))
-                    (end (if n == line (end r) - line (start r) then r else full-line-range))
+             in Range.new
+                    (start (if n ==ⁿ zero then r else full-line-range))
+                    (end (if n ==ⁿ line (end r) - line (start r) then r else full-line-range))
 
-        go : ℕ → List Range.t
-        go zero = single-line-range zero ∷ []
-        go (suc n) = single-line-range n ∷ go n
+        go : Nat → IO (List Range.t)
+        go zero = (_∷ []) <$> single-line-range zero
+        go (suc n) = ⦇ single-line-range n ∷ go n ⦈
 
-make-highlighting-tokens : vscode-api → TextDocument.t → List Token → List SemanticToken.t
-make-highlighting-tokens vscode doc = concat-map λ token →
-    let original-range = Range.new vscode (TextDocument.position-at doc (token .start - 1)) (TextDocument.position-at doc (token .end - 1))
-        single-line-ranges = divide-ranges vscode doc original-range
-        token-type ,, mods = aspect→legend (token .atoms)
-     in for single-line-ranges λ r → record { range = r ; token-type = token-type ; modifiers = mods }
-    where open Token
+make-highlighting-tokens : TextDocument.t → List Token → IO (List SemanticToken.t)
+make-highlighting-tokens doc = (concat <$>_) ∘ mapA to-semantic-token
+    where
+      open Token
+      open Monad IO.Effectful.monad
+      open TraversableA IO.Effectful.applicative
+
+      to-semantic-token : Token → IO (List SemanticToken.t)
+      to-semantic-token token = do
+        original-range ← Range.new (TextDocument.position-at doc (token .start - 1)) (TextDocument.position-at doc (token .end - 1))
+        single-line-ranges ← divide-ranges doc original-range
+        let token-type , mods = aspect→legend (token .atoms)
+        pure $ map (λ r → record { range = r ; token-type = token-type ; modifiers = mods }) single-line-ranges
