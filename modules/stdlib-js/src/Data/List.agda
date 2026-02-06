@@ -19,7 +19,7 @@ fold : B → (B → A → B) → List A → B
 fold b f [] = b
 fold b f (x ∷ xs) = fold (f b x) f xs
 
-{-# COMPILE JS fold = a => A => b => B => b => f => xs => xs.reduce((ac, e) => f(ac)(e), b) #-}
+{-# COMPILE JS fold = a => A => b => B => b => f => xs => xs.reduceRight((ac, e) => f(ac)(e), b) #-}
 
 postulate _times_ : Nat → (Nat → A) → List A
 {-# COMPILE JS _times_ = a => A => n => f => Array(Number(n)).fill(null).map((_, i) => f(BigInt(i))) #-}
