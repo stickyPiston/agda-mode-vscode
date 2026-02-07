@@ -2,6 +2,7 @@ cp = require "node:child_process"
 util = require "node:util"
 fs = require "node:fs/promises"
 path = require "node:path"
+os = require "node:os"
 exec = util.promisify cp.exec
 
 import_function = (name, erased_params) ->
@@ -48,7 +49,12 @@ run_consistency_tests = ({ inputs, name, erased_params, meta_information }) ->
         _ = refl
         """
 
-    output = path.join __dirname, "Test.agda"
+    # Make a temporary directory and copy the .agda-lib file to it
+    tmp_dir = await fs.mkdtemp path.join (do os.tmpdir), path.sep
+    await fs.cp (path.join __dirname, ".agda-lib"), (path.join tmp_dir, ".agda-lib")
+
+    # Write the Test module to the temporary directory
+    output = path.join tmp_dir, "Test.agda"
     await fs.writeFile output, """
     module Test where
     open import #{mod_name}
@@ -58,19 +64,40 @@ run_consistency_tests = ({ inputs, name, erased_params, meta_information }) ->
     """
 
     # Try to compile the file, if it succeeds then the ffi and the agda definition are consistent
-    try await exec "agda --js --js-es6 --no-main --compile-dir=dist #{output}", cwd: __dirname
-    catch then console.error "Inconsistency error"
+    try await exec "agda --js --js-es6 --no-main --compile-dir=dist #{output}", cwd: tmp_dir
+    catch e then console.error "Inconsistency error", e
 
-    # Profit?
+    # Remove the temporary directory
+    await fs.rm tmp_dir, recursive: yes
 
-cases = [
-    [{ type: "function", js: ((x) -> x + BigInt 1), agda: "λ x → x + 1" }, { type: "intlist", value: [0..20] }]
-    [{ type: "function", js: ((x) -> x + BigInt 1), agda: "λ x → x + 1" }, { type: "intlist", value: [20..100] }]
-    [{ type: "function", js: ((x) -> x + BigInt 1), agda: "λ x → x + 1" }, { type: "intlist", value: [] }]
-    [{ type: "function", js: ((x) -> x + BigInt 1), agda: "λ x → x + 1" }, { type: "intlist", value: [0] }]
-    [{ type: "function", js: ((x) -> BigInt 10), agda: "λ x → 10" }, { type: "intlist", value: [0..20] }]
-    [{ type: "function", js: ((x) -> BigInt 10), agda: "λ x → 10" }, { type: "intlist", value: [20..100] }]
-    [{ type: "function", js: ((x) -> BigInt 10), agda: "λ x → 10" }, { type: "intlist", value: [] }]
-    [{ type: "function", js: ((x) -> BigInt 10), agda: "λ x → 10" }, { type: "intlist", value: [0] }]
+cartesian_product = (xs, ys) -> xs.flatMap (x) -> ys.map (y) -> [x, y]
+
+test_lists = [
+    (type: "intlist", value: [0..20])
+    (type: "intlist", value: [20..100])
+    (type: "intlist", value: [])
+    (type: "intlist", value: [0])
 ]
-run_consistency_tests name: "Data.List.map", inputs: cases, erased_params: 4, meta_information: "{A = Nat} {B = Nat}"
+
+test_functions = [
+    (type: "function", js: ((x) -> x + BigInt 1), agda: "λ x → x + 1")
+    (type: "function", js: ((x) -> BigInt 10), agda: "λ _ → 10")
+]
+
+run_consistency_tests
+    name: "Data.List.map"
+    inputs: cartesian_product test_functions, test_lists
+    erased_params: 4
+    meta_information: "{A = Nat} {B = Nat}"
+
+run_consistency_tests
+    name: "Data.List._++_"
+    inputs: cartesian_product test_lists, test_lists
+    erased_params: 2
+    meta_information: "{A = Nat}"
+
+run_consistency_tests
+    name: "Data.List.concat"
+    inputs: { type: "intlist", value: [0..2].map (_) -> test_lists }
+    erased_params: 2
+    meta_information: "{A = Nat}"
