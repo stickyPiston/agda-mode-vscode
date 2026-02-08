@@ -1,10 +1,9 @@
-module Vscode.StdioProcess where
+module Node.Process where
 
 open import Data.String
 open import Data.List
-open import Agda.Builtin.Unit
-
 open import Data.IO
+open import Agda.Builtin.Unit
 
 module Buffer where
     postulate t : Set
@@ -26,7 +25,6 @@ module Process where
     postulate write : t → String → IO ⊤
     {-# COMPILE JS write = proc => chunk => cont => {
       proc.stdin.write(chunk);
-      proc.once("drain", () => {});
       cont(a => a["tt"]())
     } #-}
 

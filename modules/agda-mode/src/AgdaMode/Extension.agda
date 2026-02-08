@@ -18,6 +18,7 @@ open IO using (IO)
 open import Data.JSON
 open import Data.JSON.Decode
 open import Data.Map
+open import Node.Process
 
 open import Level
 
@@ -25,7 +26,6 @@ open import AgdaMode.Extension.Highlighting
 
 open import Vscode.Common
 open import Vscode.Command
-open import Vscode.StdioProcess
 open import Vscode.Panel
 open import Vscode.SemanticTokensProvider
 open import Vscode.Window
