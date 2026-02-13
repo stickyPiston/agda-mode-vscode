@@ -281,12 +281,23 @@ handle-status model status = do
   StatusBarItem.show (model .status-bar-item)
   pure model
 
+clear-running-info-decoder : Decoder ⊤
+clear-running-info-decoder = required "kind" string >>= λ where
+  "ClearRunningInfo" → pure tt ; _ → ⊘
+
+handle-clear-running-info : Model → IO Model
+handle-clear-running-info model = do
+  panel ← from-Maybe new-panel (pure <$> model .panel)
+  Panel.set-html panel ""
+  pure record model { panel = just panel }
+
 handle-agda-message : Model → Decoder (IO Model)
 handle-agda-message model =
       (handle-highlighting-info model <$> highlighting-info-decoder)
   <|> (handle-clear-highlighting model <$ clear-highlighting-decoder)
   <|> (handle-display-info model <$> display-info-decoder)
   <|> (handle-status model <$> status-decoder)
+  <|> (handle-clear-running-info model <$ clear-running-info-decoder)
   <|> ((λ x → traceM x >> pure model) <$> any)
 
 update : (Msg → IO ⊤) → Msg → Model → IO Model
