@@ -59,6 +59,7 @@ open MonadPlus ⦃ ... ⦄ using (⊘ ; _<|>_)
 
 record Model : Set where field
     panel : Maybe (Panel.t ⊤)
+    status-bar-item : StatusBarItem.t
     agda : Maybe Process.t
     stdout-buffer : String
     current-doc : Maybe TextDocument.t
@@ -82,8 +83,10 @@ spawn-agda update = do
 init : IO Model
 init = try λ _ → do
   tokens-request-emitter ← EventEmitter.new
+  sbi ← StatusBarItem.create "agdaMode.statusBar" StatusBarItem.right nothing
   pure record
     { panel = nothing
+    ; status-bar-item = sbi
     ; stdout-buffer = ""
     ; current-doc = nothing
     ; loaded-files = StringMap.empty
@@ -216,6 +219,10 @@ display-info-decoder = do
         <*> required "warnings" (list error-decoder)
       _ → ⊘
 
+_when_ : A → Bool → List A
+a when true = [ a ]
+a when false = []
+
 show-display-info : DisplayInfo → String
 show-display-info (all-goals-warnings errors inv vis warns) =
   unlines $
@@ -225,10 +232,6 @@ show-display-info (all-goals-warnings errors inv vis warns) =
     ⟨ append ⟩ errors
     ⟨ append ⟩ ("---------- Warnings ----------\n" when not (null? warns))
     ⟨ append ⟩ warns
-  where
-    _when_ : A → Bool → List A
-    a when true = [ a ]
-    a when false = []
 
 open import Agda.Builtin.Equality
 
@@ -251,6 +254,31 @@ handle-display-info : Model → DisplayInfo → IO Model
 handle-display-info model display-info = try λ _ → do
   panel ← from-Maybe new-panel (pure <$> model .panel)
   Panel.set-html panel ("<pre>" ++ show-display-info display-info ++ "</pre>")
+  pure record model { panel = just panel }
+
+record Status : Set where
+  constructor mkStatus
+  field checked show-implicit show-irrelevant : 𝔹
+open Status
+
+show-status : Status → String
+show-status status = intercalate "," $
+             ("Checked" when status .checked)
+  ⟨ append ⟩ ("ShowImpl" when status .show-implicit)
+  ⟨ append ⟩ ("ShowIrr" when status .show-irrelevant)
+
+status-decoder : Decoder Status
+status-decoder = do
+  "Status" ← required "kind" string where _ → ⊘
+  required "status" $ mkStatus
+    <$> required "checked" bool
+    <*> required "showImplicitArguments" bool
+    <*> required "showIrrelevantArguments" bool
+
+handle-status : Model → Status → IO Model
+handle-status model status = do
+  StatusBarItem.set-text (model .status-bar-item) (show-status status)
+  StatusBarItem.show (model .status-bar-item)
   pure model
 
 handle-agda-message : Model → Decoder (IO Model)
@@ -258,6 +286,7 @@ handle-agda-message model =
       (handle-highlighting-info model <$> highlighting-info-decoder)
   <|> (handle-clear-highlighting model <$ clear-highlighting-decoder)
   <|> (handle-display-info model <$> display-info-decoder)
+  <|> (handle-status model <$> status-decoder)
   <|> ((λ x → traceM x >> pure model) <$> any)
 
 update : (Msg → IO ⊤) → Msg → Model → IO Model

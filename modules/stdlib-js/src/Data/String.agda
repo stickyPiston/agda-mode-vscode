@@ -27,3 +27,6 @@ postulate lines : String → List String
 
 postulate unlines : List String → String
 {-# COMPILE JS unlines = xs => xs.join("\n") #-}
+
+postulate intercalate : String → List String → String
+{-# COMPILE JS intercalate = x => xs => xs.join(x) #-}

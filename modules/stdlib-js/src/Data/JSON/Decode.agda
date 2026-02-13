@@ -3,7 +3,7 @@ module Data.JSON.Decode where
 open import Level
 open import Agda.Builtin.Int
 open import Agda.Builtin.Float
-open import Agda.Builtin.Bool
+open import Data.Bool
 
 open import Effect.Functor
 open import Effect.Monad
@@ -41,7 +41,7 @@ module _ where
   string (j-string s) = just s
   string _ = nothing
 
-  bool : Decoder Bool
+  bool : Decoder 𝔹
   bool (j-bool b) = just b
   bool _ = nothing
 
