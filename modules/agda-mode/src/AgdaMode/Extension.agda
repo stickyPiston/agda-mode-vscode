@@ -12,7 +12,7 @@ open import Data.Bool
 open import Data.List as List hiding (_++_)
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Nat
-open import Function
+open import Function hiding (id)
 
 import Data.IO as IO
 open IO using (IO)
@@ -163,25 +163,30 @@ record ConstraintPosition : Set where
   field col line pos : Nat
 
 position-decoder : Decoder ConstraintPosition
-position-decoder = mkPosition <$> nat <*> nat <*> nat
+position-decoder = mkPosition
+  <$> required "col" nat
+  <*> required "line" nat
+  <*> required "pos" nat
 
 record ConstraintRange : Set where
   constructor mkRange
   field start end : ConstraintPosition
 
 range-decoder : Decoder ConstraintRange
-range-decoder = mkRange <$> position-decoder <*> position-decoder
+range-decoder = mkRange
+  <$> required "start" position-decoder
+  <*> required "end" position-decoder
 
 record Constraint : Set where
   constructor mkConstraint
   field
-    name : String
-    range : ConstraintRange
+    id : Nat
+    range : List ConstraintRange
 
 constraint-decoder : Decoder Constraint
 constraint-decoder = mkConstraint
-  <$> required "name" string
-  <*> required "range" range-decoder
+  <$> required "id" nat
+  <*> required "range" (list range-decoder)
 
 record Goal : Set where
   constructor mkGoal
@@ -190,7 +195,7 @@ record Goal : Set where
     type : String
 
 show-goal : Goal → String
-show-goal (mkGoal (mkConstraint name _) type) = name ++ " : " ++ type
+show-goal (mkGoal (mkConstraint name _) type) = "?" ++ primShowNat name ++ " : " ++ type
 
 goal-decoder : Decoder Goal
 goal-decoder = mkGoal
