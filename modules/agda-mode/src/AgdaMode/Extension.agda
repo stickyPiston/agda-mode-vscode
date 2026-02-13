@@ -65,6 +65,7 @@ record Model : Set where field
     current-doc : Maybe TextDocument.t
     loaded-files : StringMap.t (List Token)
     tokens-request-emitter : EventEmitter.t ⊤
+    running-info : String
 open Model
 
 data Msg : Set where
@@ -76,7 +77,7 @@ data Msg : Set where
 -- TODO: Handle unexpected closes
 spawn-agda : (Msg → IO ⊤) → IO Process.t
 spawn-agda update = do
-  proc ← Process.spawn "agda" [ "--interaction-json" ]
+  proc ← Process.spawn "agda" ("--interaction-json" ∷ "--colour=always" ∷ "--verbose=2" ∷ [])
   Process.on-data proc λ buf → update (agda-stdout-update buf)
   pure proc
 
@@ -92,6 +93,7 @@ init = try λ _ → do
     ; loaded-files = StringMap.empty
     ; agda = nothing
     ; tokens-request-emitter = tokens-request-emitter
+    ; running-info = ""
     }
 
 DefaultLegend : Legend.t
@@ -294,7 +296,27 @@ handle-clear-running-info : Model → IO Model
 handle-clear-running-info model = do
   panel ← from-Maybe new-panel (pure <$> model .panel)
   Panel.set-html panel ""
-  pure record model { panel = just panel }
+  pure record model { panel = just panel ; running-info = "" }
+
+record RunningInfo : Set where
+  constructor mkRunningInfo
+  field
+    debug-level : Nat
+    message : String
+open RunningInfo
+
+running-info-decoder : Decoder RunningInfo
+running-info-decoder = do
+  "RunningInfo" ← required "kind" string where _ → ⊘
+  mkRunningInfo <$> required "debugLevel" nat <*> required "message" string
+
+handle-running-info : Model → RunningInfo → IO Model
+handle-running-info model info = do
+  panel ← from-Maybe new-panel (pure <$> model .panel)
+  -- TODO: Allow configuration of debug level
+  let new-running-info = model .running-info ++ info .message ++ "\n"
+  Panel.set-html panel $ "<pre>" ++ new-running-info ++ "</pre>"
+  pure record model { panel = just panel ; running-info = new-running-info }
 
 handle-agda-message : Model → Decoder (IO Model)
 handle-agda-message model =
@@ -303,6 +325,7 @@ handle-agda-message model =
   <|> (handle-display-info model <$> display-info-decoder)
   <|> (handle-status model <$> status-decoder)
   <|> (handle-clear-running-info model <$ clear-running-info-decoder)
+  <|> (handle-running-info model <$> running-info-decoder)
   <|> ((λ x → traceM x >> pure model) <$> any)
 
 update : (Msg → IO ⊤) → Msg → Model → IO Model
