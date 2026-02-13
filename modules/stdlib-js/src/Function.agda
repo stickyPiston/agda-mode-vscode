@@ -24,16 +24,17 @@ infixl 1 _|>_
 _|>_ : A → (A → B) → B
 a |> f = f a
 
-infixl 1 _$_
+infixl 0 _$_
 _$_ : (A → B) → A → B
 _$_ = flip _|>_
 
 case_of_ : A → (A → B) → B
 case_of_ = _|>_
 
-if_then_else : Bool → A → A → A
-if true then t else _ = t
-if false then _ else e = e
-
 id : A → A
 id a = a
+
+infixl 5 _⟨_⟩_
+
+_⟨_⟩_ : A → (A → B → C) → B → C
+a ⟨ f ⟩ b = f a b

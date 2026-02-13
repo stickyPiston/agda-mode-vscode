@@ -30,6 +30,8 @@ record Applicative (F : Set ℓ₁ → Set ℓ₂) : Set (lsuc (ℓ₁ ⊔ ℓ�
   a *> b = (λ _ b → b) <$> a <*> b
 
 record Alternative (F : Set ℓ₁ → Set ℓ₂) : Set (lsuc (ℓ₁ ⊔ ℓ₂)) where
+  infixr 6 _<|>_
+
   field
     applicative : Applicative F
     ⊘ : F A

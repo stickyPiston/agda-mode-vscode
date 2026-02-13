@@ -8,7 +8,8 @@ open import Data.Maybe
 import Data.Maybe.Effectful as Maybe
 open import Data.String
 open import Data.Product
-open import Data.List hiding (_++_)
+open import Data.Bool
+open import Data.List as List hiding (_++_)
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Nat
 open import Function
@@ -116,6 +117,8 @@ register model update = do
 
   proc ← spawn-agda update
 
+  -- TODO: Add listener to detect whether the buffer panel has been closed
+
   pure record model
     { agda = just proc
     ; current-doc = _<$>_ {M = Maybe} TextEditor.document current-doc
@@ -133,10 +136,6 @@ ensure-process : (Msg → IO ⊤) → Model → IO Process.t
 ensure-process update model = case model .agda of λ where
   nothing → spawn-agda update
   (just proc) → pure proc
-
-foldM : ⦃ m : Monad M ⦄ → B → List A → (A → B → M B) → M B
-foldM b [] f = pure b
-foldM b (x ∷ xs) f = f x b >>= λ b' → foldM b' xs f
 
 handle-highlighting-info : Model → List Token → IO Model
 handle-highlighting-info model tokens = do
@@ -156,13 +155,110 @@ handle-clear-highlighting model = case model .current-doc of λ where
   (just doc) → pure record model { loaded-files = model .loaded-files [ TextDocument.file-name doc ]:= [] }
   nothing → pure model
 
+record ConstraintPosition : Set where
+  constructor mkPosition
+  field col line pos : Nat
+
+position-decoder : Decoder ConstraintPosition
+position-decoder = mkPosition <$> nat <*> nat <*> nat
+
+record ConstraintRange : Set where
+  constructor mkRange
+  field start end : ConstraintPosition
+
+range-decoder : Decoder ConstraintRange
+range-decoder = mkRange <$> position-decoder <*> position-decoder
+
+record Constraint : Set where
+  constructor mkConstraint
+  field
+    name : String
+    range : ConstraintRange
+
+constraint-decoder : Decoder Constraint
+constraint-decoder = mkConstraint
+  <$> required "name" string
+  <*> required "range" range-decoder
+
+record Goal : Set where
+  constructor mkGoal
+  field
+    constraint : Constraint
+    type : String
+
+show-goal : Goal → String
+show-goal (mkGoal (mkConstraint name _) type) = name ++ " : " ++ type
+
+goal-decoder : Decoder Goal
+goal-decoder = mkGoal
+  <$> required "constraintObj" constraint-decoder
+  <*> required "type" string
+
+data DisplayInfo : Set where
+  all-goals-warnings :
+    (errors : List String)
+    (invisible-goals : List Goal)
+    (visible-goals : List Goal)
+    (warnings : List String) → DisplayInfo
+
+error-decoder : Decoder String
+error-decoder = required "message" string
+
+display-info-decoder : Decoder DisplayInfo
+display-info-decoder = do
+  "DisplayInfo" ← required "kind" string where _ → ⊘
+  required "info" $
+    required "kind" string >>= λ where
+      "AllGoalsWarnings" → all-goals-warnings
+        <$> required "errors" (list error-decoder)
+        <*> required "invisibleGoals" (list goal-decoder)
+        <*> required "visibleGoals" (list goal-decoder)
+        <*> required "warnings" (list error-decoder)
+      _ → ⊘
+
+show-display-info : DisplayInfo → String
+show-display-info (all-goals-warnings errors inv vis warns) =
+  unlines $
+               ("---------- Goals ----------\n" when not (null? (inv ⟨ append ⟩ vis)))
+    ⟨ append ⟩ (map show-goal (List.append vis inv))
+    ⟨ append ⟩ ("---------- Errors ----------\n" when not (null? errors))
+    ⟨ append ⟩ errors
+    ⟨ append ⟩ ("---------- Warnings ----------\n" when not (null? warns))
+    ⟨ append ⟩ warns
+  where
+    _when_ : A → Bool → List A
+    a when true = [ a ]
+    a when false = []
+
+open import Agda.Builtin.Equality
+
+instance
+  cloneable-⊤ : Cloneable ⊤
+  cloneable-⊤ = record
+    { encode = λ _ → j-null
+    ; decode = λ { j-null → just tt ; _ → nothing }
+    ; encode-decode-dual = λ { tt → refl }
+    }
+
+new-panel : IO (Panel.t ⊤)
+new-panel = Panel.create
+  "agdaMode-buffer"
+  "*Agda information*"
+  (record { preserve-focus = true ; view-column = ViewColumn.three })
+  WebviewOptions.default
+
+handle-display-info : Model → DisplayInfo → IO Model
+handle-display-info model display-info = try λ _ → do
+  panel ← from-Maybe new-panel (pure <$> model .panel)
+  Panel.set-html panel ("<pre>" ++ show-display-info display-info ++ "</pre>")
+  pure model
+
 handle-agda-message : Model → Decoder (IO Model)
 handle-agda-message model =
       (handle-highlighting-info model <$> highlighting-info-decoder)
   <|> (handle-clear-highlighting model <$ clear-highlighting-decoder)
-
-postulate print : {A : Set} → A → IO A
-{-# COMPILE JS print = A => a => (_, cont) => { console.log(a); cont(a) } #-}
+  <|> (handle-display-info model <$> display-info-decoder)
+  <|> ((λ x → traceM x >> pure model) <$> any)
 
 update : (Msg → IO ⊤) → Msg → Model → IO Model
 update recurse msg model = trace msg $ case msg of λ where
@@ -174,16 +270,17 @@ update recurse msg model = trace msg $ case msg of λ where
       Process.write proc ("IOTCM \"" ++ path ++ "\" NonInteractive Direct (Cmd_load \"" ++ path ++ "\" [])\n")
       pure model
 
-  (agda-stdout-update buffer) → try λ _ →
+  (agda-stdout-update buffer) →
     let ls = lines (model .stdout-buffer ++ Buffer.to-string buffer)
      in case unsnoc ls of λ where
         nothing → pure record model { stdout-buffer = "" } -- When the initial buffer is empty
         (just x) →
-          let (responses , new-buffer) = x
+          let open TraversableM ⦃ ... ⦄
+              open TraversableA ⦃ ... ⦄
+              (responses , new-buffer) = x
               new-model = record model { stdout-buffer = new-buffer }
-              open TraversableA Maybe.applicative
               parsed-responses = from-Maybe [] (mapA parse-response responses)
-           in try λ _ → foldM new-model parsed-responses λ response model →
+           in foldM new-model parsed-responses λ response model → do
             from-Maybe (pure model) (handle-agda-message model response)
 
   (tokens-request resolve reject) → case model .current-doc of λ where
@@ -210,7 +307,6 @@ update recurse msg model = trace msg $ case msg of λ where
 activate : IO ⊤
 activate = try λ _ → do
   model-ref ← init >>= IO.Ref.new
-  traceM "hello"
   m ← IO.Ref.get model-ref
   m' ← register m (update' model-ref)
   IO.Ref.set model-ref m'

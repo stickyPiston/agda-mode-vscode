@@ -8,6 +8,7 @@ open import Data.JSON
 import Data.IO as IO
 open IO using (IO)
 
+open import Data.Bool
 open import Data.List
 open import Data.Product
 open import Agda.Builtin.Nat renaming (_==_ to _==ⁿ_)

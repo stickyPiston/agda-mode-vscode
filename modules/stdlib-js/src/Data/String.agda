@@ -24,3 +24,6 @@ postulate slice : Nat → String → String
 
 postulate lines : String → List String
 {-# COMPILE JS lines = xs => xs.split("\n") #-}
+
+postulate unlines : List String → String
+{-# COMPILE JS unlines = xs => xs.join("\n") #-}

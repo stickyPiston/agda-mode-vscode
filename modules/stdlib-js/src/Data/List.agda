@@ -6,6 +6,7 @@ open import Agda.Builtin.Nat
 open import Function
 open import Data.Maybe
 open import Data.Product
+open import Data.Bool
 
 private variable
   a b : Level
@@ -27,9 +28,16 @@ postulate _times_ : Nat → (Nat → A) → List A
 map : (A → B) → List A → List B
 map f = foldr [] λ ac x → f x ∷ ac
 
+null? : List A → 𝔹
+null? [] = true
+null? _ = true
+
 _++_ : List A → List A → List A
 [] ++ b = b
 (x ∷ a) ++ b = x ∷ (a ++ b)
+
+append : List A → List A → List A
+append = _++_
 
 {-# COMPILE JS _++_ = a => A => l => r => [...l, ...r] #-}
 
@@ -72,6 +80,11 @@ module TraversableM (monad : Monad M) where
 
   forM : List A → (A → M B) → M (List B)
   forM = flip mapM
+
+  -- TODO: Make this stack-safe
+  foldM : ⦃ m : Monad M ⦄ → B → List A → (A → B → M B) → M B
+  foldM b [] f = pure b
+  foldM b (x ∷ xs) f = f x b >>= λ b' → foldM b' xs f
 
 private module Tests where
   open import Agda.Builtin.Equality

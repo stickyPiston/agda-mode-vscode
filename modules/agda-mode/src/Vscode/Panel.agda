@@ -60,8 +60,9 @@ module ShowOptions where
     view-column : ViewColumn.t
   open t public
 
-  postulate fromℤ : Int → Float
-  {-# COMPILE JS fromℤ = Number #-}
+  private
+    postulate fromℤ : Int → Float
+    {-# COMPILE JS fromℤ = Number #-}
 
   encode : t → JSON
   encode t = j-object

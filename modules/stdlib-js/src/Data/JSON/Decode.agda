@@ -131,8 +131,9 @@ instance
     }
 
 _<|>'_ : Decoder A → Decoder A → Decoder A
-a <|>' b = λ json → a json <|> b json
-  where open Alternative Maybe.alternative
+(a <|>' b) json = case a json of λ where
+  nothing → b json
+  r → r
 
 instance
   alternative : Alternative {ℓ} Decoder
