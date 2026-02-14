@@ -66,12 +66,7 @@ module TextDocument where
     {-# COMPILE JS file-name = doc => doc.fileName #-}
 
     postulate open-path : String → IO t
-    {-# COMPILE JS open-path = path => cont => {
-AgdaModeImports.vscode.workspace.openTextDocument(path).then(e => {
-  cont(e);
-  console.log(e)
-});
-} #-}
+    {-# COMPILE JS open-path = path => cont => AgdaModeImports.vscode.workspace.openTextDocument(path).then(cont) #-}
 
 module ExtensionContext where
   postulate t : Set

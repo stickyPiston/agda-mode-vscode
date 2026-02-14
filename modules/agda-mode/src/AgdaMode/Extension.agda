@@ -210,6 +210,7 @@ data DisplayInfo : Set where
     (invisible-goals : List Goal)
     (visible-goals : List Goal)
     (warnings : List String) → DisplayInfo
+  error : String → DisplayInfo
 
 error-decoder : Decoder String
 error-decoder = required "message" string
@@ -224,6 +225,7 @@ display-info-decoder = do
         <*> required "invisibleGoals" (list goal-decoder)
         <*> required "visibleGoals" (list goal-decoder)
         <*> required "warnings" (list error-decoder)
+      "Error" → error <$> required "error" (required "message" string)
       _ → ⊘
 
 _when_ : A → Bool → List A
@@ -239,6 +241,7 @@ show-display-info (all-goals-warnings errors inv vis warns) =
     ⟨ append ⟩ errors
     ⟨ append ⟩ ("---------- Warnings ----------\n" when not (null? warns))
     ⟨ append ⟩ warns
+show-display-info (error message) = message
 
 open import Agda.Builtin.Equality
 
