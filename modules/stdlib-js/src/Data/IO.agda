@@ -19,9 +19,10 @@ module Effectful where
     infixl 8 _>>=_
     postulate _>>=_ : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} {B : Set ℓ₂} → IO A → (A → IO B) → IO B
     {-# COMPILE JS _>>=_ = _ => _ => _ => _ => ma => a2mb => cont => {
-      let ar; ma(a => ar = a);
+      /* let ar; ma(a => ar = a);
       let br; a2mb(ar)(b => br = b);
-      return cont(br);
+      return cont(br); */
+      ma(a => a2mb(a)(b => cont(b)))
     } #-}
 
   private

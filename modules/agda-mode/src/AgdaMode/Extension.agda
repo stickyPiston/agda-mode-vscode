@@ -318,6 +318,31 @@ handle-running-info model info = do
   Panel.set-html panel $ "<pre>" ++ new-running-info ++ "</pre>"
   pure record model { panel = just panel ; running-info = new-running-info }
 
+record JumpToError : Set where
+  constructor mkJumpToError
+  field
+    file-path : String
+    position : Nat
+open JumpToError
+
+jump-to-error-decoder : Decoder JumpToError
+jump-to-error-decoder = do
+  "JumpToError" ← required "kind" string where _ → ⊘
+  mkJumpToError <$> required "filepath" string <*> required "position" nat
+
+handle-jump-to-error : Model → JumpToError → IO Model
+handle-jump-to-error model jump-to-error = do
+  doc ← TextDocument.open-path (jump-to-error .file-path)
+  let uri = TextDocument.uri doc
+  let pos = TextDocument.position-at doc (jump-to-error .position)
+  Window.show-text-document uri record
+    { preserve-focus = true
+    ; preview = true
+    ; selection = Range.new pos pos
+    ; view-column = ViewColumn.active
+    }
+  pure model
+
 handle-agda-message : Model → Decoder (IO Model)
 handle-agda-message model =
       (handle-highlighting-info model <$> highlighting-info-decoder)
@@ -326,6 +351,7 @@ handle-agda-message model =
   <|> (handle-status model <$> status-decoder)
   <|> (handle-clear-running-info model <$ clear-running-info-decoder)
   <|> (handle-running-info model <$> running-info-decoder)
+  <|> (handle-jump-to-error model <$> jump-to-error-decoder)
   <|> ((λ x → traceM x >> pure model) <$> any)
 
 update : (Msg → IO ⊤) → Msg → Model → IO Model

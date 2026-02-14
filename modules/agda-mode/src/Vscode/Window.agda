@@ -7,6 +7,7 @@ open import Data.Maybe
 open import Function
 
 open import Data.IO
+open import Data.JSON hiding (encode)
 
 open import Vscode.Common
 open import Vscode.SemanticTokensProvider
@@ -54,3 +55,33 @@ module StatusBarItem where
 
   postulate show : t → IO ⊤
   {-# COMPILE JS show = item => cont => { item.show(); cont(a => a["tt"]()) } #-}
+
+module TextDocumentShowOptions where
+  open import Data.Bool
+  open import Vscode.Panel
+
+  record t : Set where field
+    preserve-focus preview : 𝔹
+    selection : Range.t
+    view-column : ViewColumn.t
+  open t public
+
+module Window where
+  open import Vscode.Panel
+  open TextDocumentShowOptions
+
+  module Internal where
+    open import Data.Int
+
+    postulate show-text-document : Uri.t → TextDocumentShowOptions.t → Int → IO TextEditor.t
+    {-# COMPILE JS show-text-document = uri => options => viewColumn => cont =>
+      options["record"]({
+        record: (a, b, c, _) =>
+          AgdaModeImports.vscode.window.showTextDocument(uri, {
+            preserveFocus: a, preview: b, selection: c, viewColumn: viewColumn
+          }).then(e => cont(e))
+      }) #-}
+
+  show-text-document : Uri.t → TextDocumentShowOptions.t → IO TextEditor.t
+  show-text-document uri options =
+    Internal.show-text-document uri options (ViewColumn.encode (options .view-column))

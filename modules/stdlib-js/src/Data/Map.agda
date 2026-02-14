@@ -2,6 +2,9 @@ module Data.Map where
 
 open import Data.String
 open import Data.Maybe
+open import Data.List using (List ; foldr)
+open import Data.Product
+open import Function
 
 -- Gotta be careful w immutability here
 
@@ -17,6 +20,9 @@ module StringMap where
 
   postulate combine : ∀ {V} → t V → t V → t V
   {-# COMPILE JS combine = _ => a => b => ({ ...b, ...a }) #-}
+
+  from : ∀ {V} → List (String × V) → t V
+  from = foldr empty (flip (uncurry insert))
 
 postulate _!?_ : ∀ {V} → StringMap.t V → String → Maybe V
 {-# COMPILE JS _!?_ = _ => o => k => (o.hasOwnProperty(k) ? (a => a["just"](o[k])) : (a => a["nothing"]())) #-}

@@ -17,6 +17,9 @@ module Uri where
   {-# COMPILE JS path = uri => uri.path #-}
   {-# COMPILE JS scheme = uri => uri.scheme #-}
 
+  postulate file : String → t
+  {-# COMPILE JS file = path => AgdaModeImports.vscode.URI.file(path) #-}
+
 module Position where
     postulate t : Set
     -- TODO: Turn t into a record
@@ -61,6 +64,14 @@ module TextDocument where
 
     postulate file-name : t → String
     {-# COMPILE JS file-name = doc => doc.fileName #-}
+
+    postulate open-path : String → IO t
+    {-# COMPILE JS open-path = path => cont => {
+AgdaModeImports.vscode.workspace.openTextDocument(path).then(e => {
+  cont(e);
+  console.log(e)
+});
+} #-}
 
 module ExtensionContext where
   postulate t : Set

@@ -38,3 +38,11 @@ infixl 5 _⟨_⟩_
 
 _⟨_⟩_ : A → (A → B → C) → B → C
 a ⟨ f ⟩ b = f a b
+
+open import Data.Product
+
+curry : (A × B → C) → A → B → C
+curry f a b = f (a , b)
+
+uncurry : (A → B → C) → A × B → C
+uncurry f (a , b) = f a b
