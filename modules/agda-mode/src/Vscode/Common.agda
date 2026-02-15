@@ -3,15 +3,28 @@ module Vscode.Common where
 open import Data.List
 open import Data.String
 open import Agda.Builtin.Nat
+open import Agda.Builtin.Unit
 
 open import Data.IO
 
 postulate Disposable : Set
 
+-- module Promise where
+--   postulate t : Set → Set → Set
+
+--   postulate new : ∀ {E A} → ((resolve : A → IO ⊤) → (reject : E → IO ⊤) → IO ⊤) → t E A
+--   {-# COMPILE JS new = _ => _ => b => new Promise((resolve, reject) => {
+--     b(resolve)(reject)(_ => {});
+--   }) #-}
+
+--   postulate then : ∀ {E A B} → t E A → (A → t E B) → t E B
+--   {-# COMPILE JS then = _ => _ => pa => f => pa.then(f) #-}
+
+--   postulate run : ∀ {E A} → t E A → IO ⊤
+--   {-# COMPILE JS run = _ => _ => p => cont => { cont(a => a["tt"]()); } #-}
+
 module Uri where
   postulate t : Set
-
-  postulate join-path : t → List String → IO t
 
   postulate path scheme : t → String
   {-# COMPILE JS path = uri => uri.path #-}
@@ -66,13 +79,13 @@ module TextDocument where
     {-# COMPILE JS file-name = doc => doc.fileName #-}
 
     postulate open-path : String → IO t
-    {-# COMPILE JS open-path = path => cont => AgdaModeImports.vscode.workspace.openTextDocument(path).then(cont) #-}
+    {-# COMPILE JS open-path = path => () => AgdaModeImports.vscode.workspace.openTextDocument(path) #-}
 
 module ExtensionContext where
   postulate t : Set
 
   postulate get : IO t
-  {-# COMPILE JS get = cont => cont(context) #-}
+  {-# COMPILE JS get = async () => context #-}
 
   postulate extension-uri : t → Uri.t
   {-# COMPILE JS extension-uri = ctx => ctx.extensionUri #-}

@@ -71,7 +71,7 @@ open Model
 data Msg : Set where
   load-file-msg : Msg
   agda-stdout-update : Buffer.t → Msg
-  tokens-request : (SemanticTokens.t → IO ⊤) → (String → IO ⊤) → Msg
+  tokens-request : IO.Ref.t (Maybe SemanticTokens.t) → Msg
   new-active-editor : Maybe TextEditor.t → Msg
 
 -- TODO: Handle unexpected closes
@@ -103,17 +103,21 @@ DefaultLegend =
     ; Modifier = DefaultModifier
     }
 
+postulate throw : ∀ {ℓ} {A : Set ℓ} {E : Set} → E → IO A
+{-# COMPILE JS throw = _ => _ => _ => e => async () => { throw e } #-}
+
 register : Model → (Msg → IO ⊤) → IO Model
 register model update = do
   stp ← SemanticTokensProvider.new
     (just (EventEmitter.event $ model .tokens-request-emitter))
-    λ doc token →
-      Promise.new λ resolve reject →
-        update (tokens-request resolve reject)
-  SemanticTokensProvider.register
-    (language "agda" ∩ scheme "file")
-    stp
-    DefaultLegend
+    λ doc token → do
+      r ← IO.Ref.new {A = Maybe SemanticTokens.t} nothing
+      update (tokens-request r)
+      IO.Ref.get r >>= λ where
+        nothing → throw "Busy"
+        (just tokens) → pure tokens
+
+  SemanticTokensProvider.register (language "agda" ∩ scheme "file") stp DefaultLegend
 
   on-did-change-active-text-editor-listener λ editor → update (new-active-editor editor)
   current-doc ← TextEditor.active-editor
@@ -380,8 +384,8 @@ update recurse msg model = trace msg $ case msg of λ where
            in foldM new-model parsed-responses λ response model → do
             from-Maybe (pure model) (handle-agda-message model response)
 
-  (tokens-request resolve reject) → case model .current-doc of λ where
-    nothing → trace "Rejected tokens request" $ reject "Busy" >> pure model
+  (tokens-request ref) → case model .current-doc of λ where
+    nothing → pure model
     (just doc) → case model .loaded-files !? TextDocument.file-name doc of λ where
       (just tokens) → do
         let open TraversableA IO.Effectful.applicative
@@ -389,16 +393,11 @@ update recurse msg model = trace msg $ case msg of λ where
         let semantic-tokens = make-highlighting-tokens doc tokens
         mapA (SemanticTokensBuilder.push stb) semantic-tokens
         built-tokens ← SemanticTokensBuilder.build stb
-        resolve built-tokens
+        IO.Ref.set ref (just built-tokens)
         pure model
-      nothing → trace "Rejected tokens request" $ reject "Busy" >> pure model
-
-  -- open-webview-msg → model , open-panel model system panel-opened received-webview
-  -- (panel-opened panel) → record model { panel = just panel } , none
+      nothing → pure model
 
   (new-active-editor editor) → pure record model { current-doc = TextEditor.document <$> editor }
-
-  -- (received-webview wmsg) → model , none
 
 {-# TERMINATING #-}
 activate : IO ⊤

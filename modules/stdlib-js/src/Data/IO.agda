@@ -6,23 +6,28 @@ open import Effect.Monad
 open import Level
 
 postulate IO : ∀ {ℓ} → Set ℓ → Set ℓ
+-- IO = <A>() => Promise<A>
 
 module Effectful where
   private variable
-      ℓ : Level
-      A B : Set ℓ
+    ℓ : Level
+    A B : Set ℓ
 
   private
     postulate pure : ∀ {ℓ} {A : Set ℓ} → A → IO A
-    {-# COMPILE JS pure = _ => _ => a => cont => cont(a) #-}
+    -- {-# COMPILE JS pure = _ => _ => a => cont => cont(a) #-}
+    {-# COMPILE JS pure = _ => _ => a => async () => a #-}
 
     infixl 8 _>>=_
     postulate _>>=_ : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} {B : Set ℓ₂} → IO A → (A → IO B) → IO B
-    {-# COMPILE JS _>>=_ = _ => _ => _ => _ => ma => a2mb => cont => {
-      /* let ar; ma(a => ar = a);
-      let br; a2mb(ar)(b => br = b);
-      return cont(br); */
-      ma(a => a2mb(a)(b => cont(b)))
+    -- {-# COMPILE JS _>>=_ = _ => _ => _ => _ => ma => a2mb => cont => {
+    --   let ar; ma(a => ar = a);
+    --   let br; a2mb(ar)(b => br = b);
+    --   return cont(br);
+    -- } #-}
+    {-# COMPILE JS _>>=_ = _ => _ => _ => _ => ma => a2mb => async () => {
+      const a = await ma();
+      return await a2mb(a)();
     } #-}
 
   private
@@ -58,13 +63,13 @@ module Ref where
   postulate t : ∀ {ℓ} → Set ℓ → Set ℓ
 
   postulate new : {ℓ : Level} {A : Set ℓ} → A → IO (t A)
-  {-# COMPILE JS new = _ => _ => a => cont => cont({ value: a }) #-}
+  {-# COMPILE JS new = _ => _ => a => async () => ({ value: a }) #-}
 
   postulate get : {ℓ : Level} {A : Set ℓ} → t A → IO A
-  {-# COMPILE JS get = _ => _ => ref => cont => cont(ref.value) #-}
+  {-# COMPILE JS get = _ => _ => ref => async () => ref.value #-}
 
   postulate set : {ℓ : Level} {A : Set ℓ} → t A → A → IO (Lift ℓ ⊤)
-  {-# COMPILE JS set = _ => _ => ref => a => cont => { ref.value = a; cont(a => a["tt"]()) } #-}
+  {-# COMPILE JS set = _ => _ => ref => a => async () => { ref.value = a; return a => a["tt"]() } #-}
 
   modify : {ℓ : Level} {A : Set ℓ} → (A → A) → t A → IO (Lift ℓ ⊤)
   modify f ref = get ref >>= set ref ∘ f

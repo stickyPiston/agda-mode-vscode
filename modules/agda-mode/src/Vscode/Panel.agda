@@ -81,18 +81,18 @@ module Panel where
 
   module Internal where
     postulate create : ∀ {A} → String → String → JSON → JSON → IO (t A)
-    {-# COMPILE JS create = _ => viewType => title => showOptions => options => cont =>
-      cont(AgdaModeImports.vscode.window.createWebviewPanel(viewType, title, showOptions, options)) #-}
+    {-# COMPILE JS create = _ => viewType => title => showOptions => options => async () =>
+      AgdaModeImports.vscode.window.createWebviewPanel(viewType, title, showOptions, options) #-}
 
     postulate post-message : ∀ {A} → t A → JSON → IO ⊤
-    {-# COMPILE JS post-message = panel => json => cont => { panel.webview.postMessage(json); cont(a => a["tt"]()) } #-}
+    {-# COMPILE JS post-message = panel => json => async () => { panel.webview.postMessage(json); return a => a["tt"]() } #-}
 
     postulate on-message : ∀ {A} → t A → (JSON → IO ⊤) → IO Disposable
-    {-# COMPILE JS on-message = _ => panel => listener => cont =>
-      cont(panel.webview.onDidReceiveMessage(msg => listener(msg)(_ => {}))) #-}
+    {-# COMPILE JS on-message = _ => panel => listener => async () =>
+      panel.webview.onDidReceiveMessage(msg => listener(msg)(_ => {})) #-}
 
   postulate set-html : ∀ {A} → t A → String → IO ⊤
-  {-# COMPILE JS set-html = _ => panel => html => cont => { panel.webview.html = html; cont(a => a["tt"]()) } #-}
+  {-# COMPILE JS set-html = _ => panel => html => async () => { panel.webview.html = html; return a => a["tt"]() } #-}
 
   postulate to-webview-uri : ∀ {A} → t A → Uri.t → Uri.t
   {-# COMPILE JS to-webview-uri = _ => panel => url => panel.webview.asWebviewUri(url) #-}

@@ -16,18 +16,18 @@ module TextEditor where
     postulate t : Set
 
     postulate active-editor : IO (Maybe t)
-    {-# COMPILE JS active-editor = cont => {
+    {-# COMPILE JS active-editor = async () => {
       const e = AgdaModeImports.vscode.window.activeTextEditor;
-      cont(e ? (a => a["just"](e)) : (a => a["nothing"]()));
+      return e ? (a => a["just"](e)) : (a => a["nothing"]());
     } #-}
 
     postulate document : t → TextDocument.t
     {-# COMPILE JS document = editor => editor.document #-}
 
 postulate on-did-change-active-text-editor-listener : (Maybe TextEditor.t → IO ⊤) → IO Disposable
-{-# COMPILE JS on-did-change-active-text-editor-listener = update => cont =>
-    cont(AgdaModeImports.vscode.window.onDidChangeActiveTextEditor(editor =>
-      update(editor ? (a => a["just"](editor)) : (a => a["nothing"]()))(() => {}))) #-}
+{-# COMPILE JS on-did-change-active-text-editor-listener = update => async () =>
+    AgdaModeImports.vscode.window.onDidChangeActiveTextEditor(editor =>
+      update(editor ? (a => a["just"](editor)) : (a => a["nothing"]()))(() => {})) #-}
 
 module StatusBarItem where
   postulate t : Set
@@ -41,9 +41,9 @@ module StatusBarItem where
 
   private module Internal where
     postulate create : String → Nat → Maybe Nat → IO t
-    {-# COMPILE JS create = id => align => prio => cont => {
+    {-# COMPILE JS create = id => align => prio => async () => {
       const prio_ = prio({ "just": a => a, "nothing": () => undefined });
-      cont(AgdaModeImports.vscode.window.createStatusBarItem(id, Number(align), prio_));
+      return AgdaModeImports.vscode.window.createStatusBarItem(id, Number(align), prio_);
     } #-}
 
   -- TODO: StatusBarItems are disposable
@@ -51,10 +51,10 @@ module StatusBarItem where
   create id align priority = Internal.create id (encode-alignment align) priority
 
   postulate set-text : t → String → IO ⊤
-  {-# COMPILE JS set-text = item => text => cont => {item.text = text; cont(a => a["tt"]());} #-}
+  {-# COMPILE JS set-text = item => text => async () => { item.text = text; return a => a["tt"]() } #-}
 
   postulate show : t → IO ⊤
-  {-# COMPILE JS show = item => cont => { item.show(); cont(a => a["tt"]()) } #-}
+  {-# COMPILE JS show = item => async () => { item.show(); return a => a["tt"]() } #-}
 
 module TextDocumentShowOptions where
   open import Data.Bool
@@ -74,13 +74,14 @@ module Window where
     open import Data.Int
 
     postulate show-text-document : Uri.t → TextDocumentShowOptions.t → Int → IO TextEditor.t
-    {-# COMPILE JS show-text-document = uri => options => viewColumn => cont =>
+    {-# COMPILE JS show-text-document = uri => options => viewColumn => () => new Promise((resolve, reject) =>
       options["record"]({
         record: (a, b, c, _) =>
           AgdaModeImports.vscode.window.showTextDocument(uri, {
             preserveFocus: a, preview: b, selection: c, viewColumn: viewColumn
-          }).then(e => cont(e))
-      }) #-}
+          }).then(resolve).catch(reject)
+      })
+    ) #-}
 
   show-text-document : Uri.t → TextDocumentShowOptions.t → IO TextEditor.t
   show-text-document uri options =
