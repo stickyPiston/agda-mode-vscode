@@ -30,27 +30,6 @@ module EventEmitter where
     postulate event : ∀ {A} → t A → Event.t A
     {-# COMPILE JS event = _ => emitter => emitter.event #-}
 
-module DocumentSelector where
-  open import Data.JSON hiding (encode)
-  open import Data.Map
-
-  data t : Set where
-    language scheme path-pattern : String → t
-    _∩_ : t → t → t
-
-  encode : t → JSON
-  encode filter = j-object (kvs filter)
-      where
-          kvs : t → StringMap.t JSON
-          kvs (language x) = "language" ↦ j-string x
-          kvs (scheme x) = "scheme" ↦ j-string x
-          kvs (path-pattern x) = "pattern" ↦ j-string x
-          kvs (l ∩ r) = kvs l <> kvs r
-open DocumentSelector using (language ; scheme ; path-pattern ; _∩_) public
-
-module CancellationToken where
-  postulate t : Set
-
 module SemanticTokens where
     postulate t : Set
 

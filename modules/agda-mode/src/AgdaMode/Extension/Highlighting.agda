@@ -49,23 +49,24 @@ aspect-decoder (j-string s) = case s of λ where
 aspect-decoder _ = nothing
 
 record DefinitionSite : Set where
-    constructor mk-DefinitionSite
-    field
-        filepath : String
-        position : Nat
+  constructor mk-DefinitionSite
+  field
+    filepath : String
+    position : Nat
+open DefinitionSite public
 
 definition-site-decoder : Decoder DefinitionSite
 definition-site-decoder = ⦇ mk-DefinitionSite (required "filepath" string) (required "position" nat) ⦈
   where open Applicative Decode.applicative
 
 record Token : Set where
-    constructor mk-Token
-    field
-        atoms : List Aspect
-        definition-site : Maybe DefinitionSite
-        note : String
-        start end : Nat
-        token-based : Bool
+  constructor mk-Token
+  field
+    atoms : List Aspect
+    definition-site : Maybe DefinitionSite
+    note : String
+    start end : Nat
+    token-based : Bool
 
 token-decoder : Decoder Token
 token-decoder = ⦇ mk-Token
@@ -111,28 +112,28 @@ legend = record { TokenType = DefaultTokenType ; Modifier = DefaultModifier }
 
 divide-ranges : TextDocument.t → Range.t → List Range.t
 divide-ranges doc r = go (line (start r) - line (end r))
-    where
-        open Position
-        open Range
+  where
+    open Position
+    open Range
 
-        single-line-range : Nat → Range.t
-        single-line-range n =
-            let full-line-range = TextLine.range (TextDocument.line-at doc (line (start r) + n))
-             in Range.new
-                  (start (if n ==ⁿ zero then r else full-line-range))
-                  (end (if n ==ⁿ line (end r) - line (start r) then r else full-line-range))
+    single-line-range : Nat → Range.t
+    single-line-range n =
+        let full-line-range = TextLine.range (TextDocument.line-at doc (line (start r) + n))
+          in Range.new
+              (start (if n ==ⁿ zero then r else full-line-range))
+              (end (if n ==ⁿ line (end r) - line (start r) then r else full-line-range))
 
-        go : Nat → List Range.t
-        go zero = [ single-line-range zero ]
-        go (suc n) = single-line-range n ∷ go n
+    go : Nat → List Range.t
+    go zero = [ single-line-range zero ]
+    go (suc n) = single-line-range n ∷ go n
 
 make-highlighting-tokens : TextDocument.t → List Token → List SemanticToken.t
 make-highlighting-tokens doc = concat ∘ map to-semantic-token
-    where
-      to-semantic-token : Token → (List SemanticToken.t)
-      to-semantic-token token = do
-        let open Token
-            original-range = Range.new (TextDocument.position-at doc (token .start - 1)) (TextDocument.position-at doc (token .end - 1))
-            single-line-ranges = divide-ranges doc original-range
-            token-type , mods = aspect→legend (token .atoms)
-         in map (λ r → record { range = r ; token-type = token-type ; modifiers = mods }) single-line-ranges
+  where
+    to-semantic-token : Token → (List SemanticToken.t)
+    to-semantic-token token = do
+      let open Token
+          original-range = Range.new (TextDocument.position-at doc (token .start - 1)) (TextDocument.position-at doc (token .end - 1))
+          single-line-ranges = divide-ranges doc original-range
+          token-type , mods = aspect→legend (token .atoms)
+       in map (λ r → record { range = r ; token-type = token-type ; modifiers = mods }) single-line-ranges

@@ -72,6 +72,7 @@ data Msg : Set where
   load-file-msg : Msg
   agda-stdout-update : Buffer.t → Msg
   tokens-request : IO.Ref.t (Maybe SemanticTokens.t) → Msg
+  definition-request : TextDocument.t → Position.t → IO.Ref.t (Maybe Location.t) → Msg
   new-active-editor : Maybe TextEditor.t → Msg
 
 -- TODO: Handle unexpected closes
@@ -127,6 +128,12 @@ register model update = do
   proc ← spawn-agda update
 
   -- TODO: Add listener to detect whether the buffer panel has been closed
+
+  DefinitionProvider.register (language "agda" ∩ scheme "file") =<<
+    DefinitionProvider.new λ doc pos tok → do
+      r ← IO.Ref.new {A = Maybe Location.t} nothing
+      update (definition-request doc pos r)
+      IO.Ref.get r
 
   pure record model
     { agda = just proc
@@ -361,6 +368,10 @@ handle-agda-message model =
   <|> (handle-jump-to-error model <$> jump-to-error-decoder)
   <|> ((λ x → traceM x >> pure model) <$> any)
 
+token-range : Nat → Nat → TextDocument.t → Range.t
+token-range start end doc =
+  TextDocument.position-at doc start ⟨ Range.new ⟩ TextDocument.position-at doc end
+
 update : (Msg → IO ⊤) → Msg → Model → IO Model
 update recurse msg model = trace msg $ case msg of λ where
   load-file-msg → case model .current-doc of λ where
@@ -398,6 +409,20 @@ update recurse msg model = trace msg $ case msg of λ where
       nothing → pure model
 
   (new-active-editor editor) → pure record model { current-doc = TextEditor.document <$> editor }
+
+  (definition-request doc pos ref) → case model .loaded-files !? TextDocument.file-name doc of λ where
+    nothing → pure model -- Uhhh when does this actually happend?
+    (just tokens) →
+      let open Token
+       in case find (λ tok → pos Range.in-range token-range (tok .start) (tok .end) doc) tokens of λ where
+        (just token) → case token .definition-site of λ where
+          nothing → pure model
+          (just site) → do
+            other ← TextDocument.open-path (site .filepath)
+            let pos = TextDocument.position-at other (site .position - 1)
+            IO.Ref.set ref (just $ Location.new (TextDocument.uri other) pos)
+            pure model
+        nothing → pure model
 
 {-# TERMINATING #-}
 activate : IO ⊤

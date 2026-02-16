@@ -59,6 +59,14 @@ unsnoc (a ∷ as) = case unsnoc as of λ where
   }
 } #-}
 
+find : (A → 𝔹) → List A → Maybe A
+find p [] = nothing
+find p (x ∷ xs) = if p x then just x else (find p xs)
+{-# COMPILE JS find = a => A => p => xs => {
+  const found = xs.find(p);
+  return found ? (x => x["just"](found)) : (x => x["nothing"]());
+} #-}
+
 open import Effect.Applicative
 
 module TraversableA (applicative : Applicative F) where
