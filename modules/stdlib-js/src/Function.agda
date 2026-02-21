@@ -24,7 +24,7 @@ infixl 1 _|>_
 _|>_ : A → (A → B) → B
 a |> f = f a
 
-infixl 0 _$_
+infixl 1 _$_
 _$_ : (A → B) → A → B
 _$_ = flip _|>_
 
@@ -46,3 +46,6 @@ curry f a b = f (a , b)
 
 uncurry : (A → B → C) → A × B → C
 uncurry f (a , b) = f a b
+
+_∋_ : (A : Set) → A → A
+_ ∋ a = a

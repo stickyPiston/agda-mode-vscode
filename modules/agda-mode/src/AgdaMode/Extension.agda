@@ -13,6 +13,7 @@ open import Data.List as List hiding (_++_)
 open import Agda.Builtin.Bool
 open import Agda.Builtin.Nat
 open import Function hiding (id)
+open import Data.Monoid
 
 import Data.IO as IO
 open IO using (IO)
@@ -30,11 +31,10 @@ open import Vscode.Command
 open import Vscode.Panel
 open import Vscode.SemanticTokensProvider
 open import Vscode.Window
+open import Vscode.TextEditor
 
 postulate trace : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} {B : Set ℓ₂} → A → B → B
-{-# COMPILE JS trace = _ => _ => _ => _ => a => b => {
-  try { console.log(a); return b } catch (e) { console.error(e) }
-} #-}
+{-# COMPILE JS trace = _ => _ => _ => _ => a => b => { console.log(a); return b } #-}
 
 traceM : ∀ {ℓ} {M : Set → Set ℓ} {A : Set} ⦃ m : Monad M ⦄ → A → M ⊤
 traceM ⦃ m ⦄ a = trace a $ pure tt
@@ -57,6 +57,18 @@ open IO.Effectful
 open Monad ⦃ ... ⦄
 open MonadPlus ⦃ ... ⦄ using (⊘ ; _<|>_)
 
+record InputModeBuffer : Set where field
+  start-pos : Position.t
+  buffer : String
+
+IMB-combine : InputModeBuffer → InputModeBuffer → InputModeBuffer
+IMB-combine record { start-pos = p₁ ; buffer = b₁ } record { start-pos = p₂ ; buffer = b₂ } =
+  record { start-pos = p₁ ; buffer = b₁ ++ b₂ }
+
+instance
+  IMB-Semigroup : Semigroup InputModeBuffer
+  IMB-Semigroup = record { _<>_ = IMB-combine }
+
 record Model : Set where field
     panel : Maybe (Panel.t ⊤)
     status-bar-item : StatusBarItem.t
@@ -66,6 +78,8 @@ record Model : Set where field
     loaded-files : StringMap.t (List Token)
     tokens-request-emitter : EventEmitter.t ⊤
     running-info : String
+    input-mode-buffer : Maybe InputModeBuffer
+    underline-decoration : DecorationType.t
 open Model
 
 data Msg : Set where
@@ -74,6 +88,7 @@ data Msg : Set where
   tokens-request : IO.Ref.t (Maybe SemanticTokens.t) → Msg
   definition-request : TextDocument.t → Position.t → IO.Ref.t (Maybe Location.t) → Msg
   new-active-editor : Maybe TextEditor.t → Msg
+  type-request : JSON → Msg
 
 -- TODO: Handle unexpected closes
 spawn-agda : (Msg → IO ⊤) → IO Process.t
@@ -86,6 +101,9 @@ init : IO Model
 init = try λ _ → do
   tokens-request-emitter ← EventEmitter.new
   sbi ← StatusBarItem.create "agdaMode.statusBar" StatusBarItem.right nothing
+  dec ←
+    let open DecorationType
+     in Options.new >>= create ∘ Options.set-text-decoration "underline"
   pure record
     { panel = nothing
     ; status-bar-item = sbi
@@ -95,6 +113,8 @@ init = try λ _ → do
     ; agda = nothing
     ; tokens-request-emitter = tokens-request-emitter
     ; running-info = ""
+    ; input-mode-buffer = nothing
+    ; underline-decoration = dec
     }
 
 DefaultLegend : Legend.t
@@ -135,6 +155,9 @@ register model update = do
       update (definition-request doc pos r)
       IO.Ref.get r
 
+  register-command-with-args "type" λ args → update (type-request args)
+    -- execute-command "default:type" (⊤ ∋ args)
+
   pure record model
     { agda = just proc
     ; current-doc = _<$>_ {M = Maybe} TextEditor.document current-doc
@@ -166,8 +189,8 @@ clear-highlighting-decoder =
     "ClearHighlighting" → pure tt
     _ → ⊘
 
-handle-clear-highlighting : Model → IO Model
-handle-clear-highlighting model = case model .current-doc of λ where
+handle-clear-highlighting : Model → ⊤ → IO Model
+handle-clear-highlighting model tt = case model .current-doc of λ where
   (just doc) → pure record model { loaded-files = model .loaded-files [ TextDocument.file-name doc ]:= [] }
   nothing → pure model
 
@@ -306,8 +329,8 @@ clear-running-info-decoder : Decoder ⊤
 clear-running-info-decoder = required "kind" string >>= λ where
   "ClearRunningInfo" → pure tt ; _ → ⊘
 
-handle-clear-running-info : Model → IO Model
-handle-clear-running-info model = do
+handle-clear-running-info : Model → ⊤ → IO Model
+handle-clear-running-info model tt = do
   panel ← from-Maybe new-panel (pure <$> model .panel)
   Panel.set-html panel ""
   pure record model { panel = just panel ; running-info = "" }
@@ -359,14 +382,14 @@ handle-jump-to-error model jump-to-error = do
 
 handle-agda-message : Model → Decoder (IO Model)
 handle-agda-message model =
-      (handle-highlighting-info model <$> highlighting-info-decoder)
-  <|> (handle-clear-highlighting model <$ clear-highlighting-decoder)
-  <|> (handle-display-info model <$> display-info-decoder)
-  <|> (handle-status model <$> status-decoder)
-  <|> (handle-clear-running-info model <$ clear-running-info-decoder)
-  <|> (handle-running-info model <$> running-info-decoder)
-  <|> (handle-jump-to-error model <$> jump-to-error-decoder)
-  <|> ((λ x → traceM x >> pure model) <$> any)
+  ⦇ (handle-highlighting-info model) highlighting-info-decoder
+  | (handle-clear-highlighting model) clear-highlighting-decoder
+  | (handle-display-info model) display-info-decoder
+  | (handle-status model) status-decoder
+  | (handle-clear-running-info model) clear-running-info-decoder
+  | (handle-running-info model) running-info-decoder
+  | (handle-jump-to-error model) jump-to-error-decoder
+  ⦈
 
 token-range : Nat → Nat → TextDocument.t → Range.t
 token-range start end doc =
@@ -423,6 +446,46 @@ update recurse msg model = trace msg $ case msg of λ where
             IO.Ref.set ref (just $ Location.new (TextDocument.uri other) pos)
             pure model
         nothing → pure model
+
+  (type-request o) → case o of λ where
+    (j-object m) → case m !? "text" of λ where
+      (just (j-string text)) → do
+        execute-command "default:type" (j-object ("text" ↦ j-string text))
+        new-model ← if text =~ "^\\s$"
+          then ( -- Check for any whitespace character
+            TextEditor.active-editor >>= λ where
+              (just e) → case model .input-mode-buffer of λ where
+                (just record { start-pos = start-pos }) → do
+                  TextEditor.remove-decoration (model .underline-decoration) e
+                  end-pos ← Position.left 1 <$> TextEditor.cursor-pos e
+                  done ← TextEditor.edit [ Edit.replace (Range.new start-pos end-pos) "λ" ] e
+                  traceM $ Range.new start-pos end-pos
+                  pure record model { input-mode-buffer = nothing }
+                nothing → pure model
+              nothing → pure model)
+          else do
+            if text =~ "^\\\\$"
+              then (TextEditor.active-editor >>= λ where
+                (just ed) → do
+                  start-pos ← Position.left 1 <$> TextEditor.cursor-pos ed
+                  let imb = record { start-pos = start-pos ; buffer = "" }
+                  pure record model { input-mode-buffer = just imb }
+                nothing   → pure model)
+              else (case model .input-mode-buffer of λ where
+                (just imb@record { buffer = b }) →
+                  pure record model { input-mode-buffer = just (record imb { buffer = b ++ text }) }
+                nothing → pure model)
+
+        TextEditor.active-editor >>= λ where
+          (just e) → case new-model .input-mode-buffer of λ where
+            (just record { start-pos = start-pos }) → do
+              range ← Range.new start-pos <$> TextEditor.cursor-pos e
+              e |> TextEditor.set-decoration (model .underline-decoration) range
+              pure new-model
+            nothing → pure new-model
+          nothing → pure new-model
+      _ → pure model
+    _ → pure model
 
 {-# TERMINATING #-}
 activate : IO ⊤

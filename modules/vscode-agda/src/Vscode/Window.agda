@@ -4,6 +4,8 @@ open import Agda.Builtin.Unit
 open import Agda.Builtin.Nat
 open import Data.String
 open import Data.Maybe
+open import Data.Bool
+open import Data.List
 open import Function
 
 open import Data.IO
@@ -11,18 +13,7 @@ open import Data.JSON hiding (encode)
 
 open import Vscode.Common
 open import Vscode.SemanticTokensProvider
-
-module TextEditor where
-    postulate t : Set
-
-    postulate active-editor : IO (Maybe t)
-    {-# COMPILE JS active-editor = async () => {
-      const e = AgdaModeImports.vscode.window.activeTextEditor;
-      return e ? (a => a["just"](e)) : (a => a["nothing"]());
-    } #-}
-
-    postulate document : t → TextDocument.t
-    {-# COMPILE JS document = editor => editor.document #-}
+open import Vscode.TextEditor
 
 postulate on-did-change-active-text-editor-listener : (Maybe TextEditor.t → IO ⊤) → IO Disposable
 {-# COMPILE JS on-did-change-active-text-editor-listener = update => async () =>

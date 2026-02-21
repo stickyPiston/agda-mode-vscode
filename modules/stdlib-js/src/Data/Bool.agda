@@ -7,7 +7,9 @@ private variable
   ℓ : Level
   A B : Set ℓ
 
-if_then_else : 𝔹 → A → A → A
+infixr 2 if_then_else_
+
+if_then_else_ : 𝔹 → A → A → A
 if true then t else _ = t
 if false then _ else e = e
 

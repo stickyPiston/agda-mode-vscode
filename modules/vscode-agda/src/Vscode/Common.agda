@@ -29,6 +29,9 @@ module Position where
     {-# COMPILE JS line = pos => BigInt(pos.line) #-}
     {-# COMPILE JS char = pos => BigInt(pos.character) #-}
 
+    left : Nat → t → t
+    left n t = new (line t) (char t - n)
+
 module Range where
   open import Data.Bool
 
