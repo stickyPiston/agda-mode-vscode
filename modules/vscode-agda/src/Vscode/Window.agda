@@ -47,6 +47,9 @@ module StatusBarItem where
   postulate show : t → IO ⊤
   {-# COMPILE JS show = item => async () => { item.show(); return a => a["tt"]() } #-}
 
+  postulate hide : t → IO ⊤
+  {-# COMPILE JS hide = item => async () => { item.hide(); return a => a["tt"]() } #-}
+
 module TextDocumentShowOptions where
   open import Data.Bool
   open import Vscode.Panel

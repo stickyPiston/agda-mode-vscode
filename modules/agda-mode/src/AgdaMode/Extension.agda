@@ -72,6 +72,7 @@ instance
 record Model : Set where field
     panel : Maybe (Panel.t ⊤)
     status-bar-item : StatusBarItem.t
+    input-mode-status-item : StatusBarItem.t
     agda : Maybe Process.t
     stdout-buffer : String
     current-doc : Maybe TextDocument.t
@@ -100,13 +101,15 @@ spawn-agda update = do
 init : IO Model
 init = try λ _ → do
   tokens-request-emitter ← EventEmitter.new
-  sbi ← StatusBarItem.create "agdaMode.statusBar" StatusBarItem.right nothing
+  sbi₁ ← StatusBarItem.create "agdaMode.statusBar" StatusBarItem.right nothing
+  sbi₂ ← StatusBarItem.create "agdaMode.inputMode" StatusBarItem.left nothing
   dec ←
     let open DecorationType
      in Options.new >>= create ∘ Options.set-text-decoration "underline"
   pure record
     { panel = nothing
-    ; status-bar-item = sbi
+    ; status-bar-item = sbi₁
+    ; input-mode-status-item = sbi₂
     ; stdout-buffer = ""
     ; current-doc = nothing
     ; loaded-files = StringMap.empty
@@ -459,7 +462,7 @@ update recurse msg model = trace msg $ case msg of λ where
                   TextEditor.remove-decoration (model .underline-decoration) e
                   end-pos ← Position.left 1 <$> TextEditor.cursor-pos e
                   done ← TextEditor.edit [ Edit.replace (Range.new start-pos end-pos) "λ" ] e
-                  traceM $ Range.new start-pos end-pos
+                  StatusBarItem.hide (model .input-mode-status-item)
                   pure record model { input-mode-buffer = nothing }
                 nothing → pure model
               nothing → pure model)
@@ -478,9 +481,11 @@ update recurse msg model = trace msg $ case msg of λ where
 
         TextEditor.active-editor >>= λ where
           (just e) → case new-model .input-mode-buffer of λ where
-            (just record { start-pos = start-pos }) → do
+            (just record { start-pos = start-pos ; buffer = b }) → do
               range ← Range.new start-pos <$> TextEditor.cursor-pos e
               e |> TextEditor.set-decoration (model .underline-decoration) range
+              StatusBarItem.set-text (model .input-mode-status-item) ("\\" ++ b)
+              StatusBarItem.show (model .input-mode-status-item)
               pure new-model
             nothing → pure new-model
           nothing → pure new-model
