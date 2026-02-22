@@ -401,6 +401,12 @@ token-range : Nat → Nat → TextDocument.t → Range.t
 token-range start end doc =
   TextDocument.position-at doc start ⟨ Range.new ⟩ TextDocument.position-at doc end
 
+clear-imb : Model → TextEditor.t → IO Model
+clear-imb model e = do
+  TextEditor.remove-decoration (model .underline-decoration) e
+  StatusBarItem.hide (model .input-mode-status-item)
+  pure record model { input-mode-buffer = nothing }
+
 update : (Msg → IO ⊤) → Msg → Model → IO Model
 update recurse msg model = trace msg $ case msg of λ where
   load-file-msg → case model .current-doc of λ where
@@ -460,14 +466,7 @@ update recurse msg model = trace msg $ case msg of λ where
         new-model ← if text =~ "^\\s$"
           then ( -- Check for any whitespace character
             TextEditor.active-editor >>= λ where
-              (just e) → case model .input-mode-buffer of λ where
-                (just record { start-pos = start-pos }) → do
-                  TextEditor.remove-decoration (model .underline-decoration) e
-                  end-pos ← Position.left 1 <$> TextEditor.cursor-pos e
-                  done ← TextEditor.edit [ Edit.replace (Range.new start-pos end-pos) "λ" ] e
-                  StatusBarItem.hide (model .input-mode-status-item)
-                  pure record model { input-mode-buffer = nothing }
-                nothing → pure model
+              (just e) → clear-imb model e
               nothing → pure model)
           else do
             if text =~ "^\\\\$"
@@ -476,7 +475,7 @@ update recurse msg model = trace msg $ case msg of λ where
                   start-pos ← Position.left 1 <$> TextEditor.cursor-pos ed
                   let imb = record { start-pos = start-pos ; buffer = "" }
                   pure record model { input-mode-buffer = just imb }
-                nothing   → pure model)
+                nothing → pure model)
               else (case model .input-mode-buffer of λ where
                 (just imb@record { buffer = b }) →
                   pure record model { input-mode-buffer = just (record imb { buffer = b ++ text }) }
@@ -487,10 +486,25 @@ update recurse msg model = trace msg $ case msg of λ where
             (just record { start-pos = start-pos ; buffer = b }) → do
               range ← Range.new start-pos <$> TextEditor.cursor-pos e
               e |> TextEditor.set-decoration (model .underline-decoration) range
-              let next = join ∘ sort ∘ from-Maybe [] $ next-characters (split b) (model .keymap)
-              StatusBarItem.set-text (model .input-mode-status-item) ("\\" ++ b ++ "[" ++ next ++ "]")
-              StatusBarItem.show (model .input-mode-status-item)
-              pure new-model
+              case match (split b) (new-model .keymap) of λ where
+                (just record { values = [ x ] ; subtrees = [] }) → do
+                  end-pos ← TextEditor.cursor-pos e
+                  let r = Range.new start-pos end-pos
+                  TextEditor.edit [ Edit.replace r x ] e
+                  clear-imb new-model e
+                (just t) → do
+                  let next = join (next-characters t)
+                  StatusBarItem.set-text (model .input-mode-status-item) ("\\" ++ b ++ "[" ++ next ++ "]")
+                  StatusBarItem.show (model .input-mode-status-item)
+                  case Trie.values t of λ where
+                    (x ∷ xs) → do
+                      end-pos ← TextEditor.cursor-pos e
+                      let r = Range.new start-pos end-pos
+                      TextEditor.edit [ Edit.replace r x ] e
+                      pure tt
+                    [] → pure tt
+                  pure new-model
+                nothing → clear-imb new-model e
             nothing → pure new-model
           nothing → pure new-model
       _ → pure model

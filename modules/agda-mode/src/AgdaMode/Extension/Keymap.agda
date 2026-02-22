@@ -50,5 +50,5 @@ match [] t = just t
 match (x ∷ xs) t = find (λ (k , _) → k == x) (t .subtrees) >>= match xs ∘ proj₂
 
 -- Suggest which characters can be used to continue traverse the trie
-next-characters : List String → Trie → Maybe (List String)
-next-characters = fmap (map proj₁ ∘ subtrees) ∘₂ match
+next-characters : Trie → List String
+next-characters = sort ∘ map proj₁ ∘ subtrees
