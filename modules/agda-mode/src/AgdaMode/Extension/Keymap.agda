@@ -26,6 +26,7 @@ record Trie : Set where
   field
     values : List String
     subtrees : List (String × Trie)
+open Trie
 
 {-# TERMINATING #-}
 trie-decoder : Decoder Trie
@@ -42,3 +43,12 @@ trie-decoder =
 
 load-keymap : String → IO (Maybe Trie)
 load-keymap = fmap (parse-json >=> trie-decoder) ∘ load-file
+
+-- Θ(min(|xs|, depth(t)))
+match : List String → Trie → Maybe Trie
+match [] t = just t
+match (x ∷ xs) t = find (λ (k , _) → k == x) (t .subtrees) >>= match xs ∘ proj₂
+
+-- Suggest which characters can be used to continue traverse the trie
+next-characters : List String → Trie → Maybe (List String)
+next-characters = fmap (map proj₁ ∘ subtrees) ∘₂ match

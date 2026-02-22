@@ -33,3 +33,9 @@ postulate intercalate : String → List String → String
 
 postulate _=~_ : String → String → 𝔹
 {-# COMPILE JS _=~_ = s => r => new RegExp(r).test(s) #-}
+
+postulate split : String → List String
+{-# COMPILE JS split = s => s.split("") #-}
+
+join : List String → String
+join = intercalate ""

@@ -82,6 +82,7 @@ record Model : Set where field
     running-info : String
     input-mode-buffer : Maybe InputModeBuffer
     underline-decoration : DecorationType.t
+    keymap : Trie
 open Model
 
 data Msg : Set where
@@ -99,8 +100,8 @@ spawn-agda update = do
   Process.on-data proc λ buf → update (agda-stdout-update buf)
   pure proc
 
-init : IO Model
-init = try λ _ → do
+init : Trie → IO Model
+init keymap = do
   tokens-request-emitter ← EventEmitter.new
   sbi₁ ← StatusBarItem.create "agdaMode.statusBar" StatusBarItem.right nothing
   sbi₂ ← StatusBarItem.create "agdaMode.inputMode" StatusBarItem.left nothing
@@ -119,6 +120,7 @@ init = try λ _ → do
     ; running-info = ""
     ; input-mode-buffer = nothing
     ; underline-decoration = dec
+    ; keymap = keymap
     }
 
 DefaultLegend : Legend.t
@@ -485,7 +487,8 @@ update recurse msg model = trace msg $ case msg of λ where
             (just record { start-pos = start-pos ; buffer = b }) → do
               range ← Range.new start-pos <$> TextEditor.cursor-pos e
               e |> TextEditor.set-decoration (model .underline-decoration) range
-              StatusBarItem.set-text (model .input-mode-status-item) ("\\" ++ b)
+              let next = join ∘ sort ∘ from-Maybe [] $ next-characters (split b) (model .keymap)
+              StatusBarItem.set-text (model .input-mode-status-item) ("\\" ++ b ++ "[" ++ next ++ "]")
               StatusBarItem.show (model .input-mode-status-item)
               pure new-model
             nothing → pure new-model
@@ -495,12 +498,15 @@ update recurse msg model = trace msg $ case msg of λ where
 
 {-# TERMINATING #-}
 activate : IO ⊤
-activate = try λ _ → do
-  model-ref ← init >>= IO.Ref.new
-  m ← IO.Ref.get model-ref
-  m' ← register m (update' model-ref)
-  IO.Ref.set model-ref m'
-  pure tt
+activate = try λ _ →
+  load-keymap "/Users/terra/Desktop/code/agda-mode-agda/modules/agda-mode/src/keymap.json" >>= λ where
+    (just keymap) → do
+      model-ref ← init keymap >>= IO.Ref.new
+      m ← IO.Ref.get model-ref
+      m' ← register m (update' model-ref)
+      IO.Ref.set model-ref m'
+      pure tt
+    nothing → pure tt
   where
     update' : IO.Ref.t Model → Msg → IO ⊤
     update' model-ref msg = do

@@ -50,6 +50,10 @@ concat = foldr [] λ ac l → l ++ ac
 concat-for : List A → (A → List B) → List B
 concat-for = concat ∘₂ for
 
+-- TODO: This function is a little dubious, probably needs to be fixed
+postulate sort : List A → List A
+{-# COMPILE JS sort = _ => _ => xs => xs.toSorted() #-}
+
 unsnoc : List A → Maybe (List A × A)
 unsnoc [] = nothing
 unsnoc (x ∷ []) = just ([] , x)

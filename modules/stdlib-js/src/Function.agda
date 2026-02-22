@@ -13,6 +13,8 @@ const a _ = a
 flip : (A → B → C) → (B → A → C)
 flip f b a = f a b
 
+infixr 5 _∘_
+
 _∘_ : (B → C) → (A → B) → A → C
 (f ∘ g) a = f (g a)
 
