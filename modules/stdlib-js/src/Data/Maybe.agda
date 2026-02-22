@@ -12,6 +12,10 @@ from-Maybe : A → Maybe A → A
 from-Maybe b nothing  = b
 from-Maybe _ (just a) = a
 
+maybe : B → (A → B) → Maybe A → B
+maybe b _ nothing  = b
+maybe _ f (just a) = f a
+
 open import Data.Monoid hiding (_<>_)
 
 private

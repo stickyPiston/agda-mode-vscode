@@ -1,6 +1,7 @@
 import Main from "./jAgda.AgdaMode.Extension.mjs";
 import * as vscode from "vscode";
 import * as process from "node:child_process";
+import * as fs from "node:fs/promises";
 
 export function activate(context) {
     // We make a separate object for AgdaModeImports. Since globalThis is shared
@@ -8,7 +9,7 @@ export function activate(context) {
     // generic names to globalThis has the tendency to break other things in
     // unexpected and unsolvable ways.
     Object.defineProperty(globalThis, "AgdaModeImports", {
-        value: { vscode, process, context }
+        value: { vscode, process, context, fs }
     });
     Main.activate(_ => {});
 }

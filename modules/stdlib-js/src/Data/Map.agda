@@ -21,6 +21,10 @@ module StringMap where
   postulate combine : ∀ {V} → t V → t V → t V
   {-# COMPILE JS combine = _ => a => b => ({ ...b, ...a }) #-}
 
+  postulate entries : ∀ {V} → t V → List (String × V)
+  {-# COMPILE JS entries = _ => m =>
+    Object.entries(m).map(([k, v]) => ({ "_,_": x => x["_,_"](k, v) })) #-}
+
   from : ∀ {V} → List (String × V) → t V
   from = foldr empty (flip (uncurry insert))
 

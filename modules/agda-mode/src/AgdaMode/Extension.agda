@@ -25,6 +25,7 @@ open import Node.Process
 open import Level
 
 open import AgdaMode.Extension.Highlighting
+open import AgdaMode.Extension.Keymap
 
 open import Vscode.Common
 open import Vscode.Command

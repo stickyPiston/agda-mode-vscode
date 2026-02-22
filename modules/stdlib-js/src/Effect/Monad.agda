@@ -11,8 +11,8 @@ private variable
   C : Set ℓ₃
 
 record Monad (M : Set ℓ₁ → Set ℓ₂) : Set (lsuc (ℓ₁ ⊔ ℓ₂)) where
-  infixl 1 _>>=_ _>>_ _>=>_
-  infixr 1 _=<<_ _<=<_
+  infixl 2 _>>=_ _>>_ _>=>_
+  infixr 2 _=<<_ _<=<_
 
   field
     applicative : Applicative M

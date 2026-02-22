@@ -28,6 +28,9 @@ postulate _times_ : Nat → (Nat → A) → List A
 map : (A → B) → List A → List B
 map f = foldr [] λ ac x → f x ∷ ac
 
+for : List A → (A → B) → List B
+for = flip map
+
 null? : List A → 𝔹
 null? [] = true
 null? _ = true
@@ -43,6 +46,9 @@ append = _++_
 
 concat : List (List A) → List A
 concat = foldr [] λ ac l → l ++ ac
+
+concat-for : List A → (A → List B) → List B
+concat-for = concat ∘₂ for
 
 unsnoc : List A → Maybe (List A × A)
 unsnoc [] = nothing
