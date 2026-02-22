@@ -3,6 +3,10 @@ module Data.IO where
 open import Effect.Functor
 open import Effect.Applicative
 open import Effect.Monad
+
+open import Data.Bool
+open import Agda.Builtin.Unit
+
 open import Level
 
 postulate IO : ∀ {ℓ} → Set ℓ → Set ℓ
@@ -53,12 +57,20 @@ module Effectful where
     monad : Monad {ℓ} IO
     monad = record { applicative = applicative ; _>>=_ = _>>=_ }
 
+open Effectful
+open Monad ⦃ ... ⦄
+
+when : 𝔹 → IO ⊤ → IO ⊤
+when true a = a
+when false _ = pure tt
+
+unless : 𝔹 → IO ⊤ → IO ⊤
+unless false a = a
+unless true _ = pure tt
+
 module Ref where
   open import Function using (_∘_)
   open import Agda.Builtin.Unit
-
-  open Effectful
-  open Monad ⦃ ... ⦄
 
   postulate t : ∀ {ℓ} → Set ℓ → Set ℓ
 

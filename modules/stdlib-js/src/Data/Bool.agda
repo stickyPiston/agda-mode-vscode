@@ -17,6 +17,8 @@ not : 𝔹 → 𝔹
 not true = false
 not false = true
 
+infixl 7 _∧_ _∨_
+
 _∧_ : 𝔹 → 𝔹 → 𝔹
 false ∧ b = false
 _ ∧ b = b

@@ -20,16 +20,22 @@ private variable A : Set
 open Monad ⦃ ... ⦄
 open MonadPlus ⦃ ... ⦄ using (_<|>_ ; ⊘)
 
-record Trie : Set where
-  inductive
-  constructor trie
-  field
-    values : List String
-    subtrees : List (String × Trie)
-open Trie
+module Trie where
+  record t : Set where
+    inductive
+    constructor trie
+    field
+      values : List String
+      subtrees : List (String × t)
+  open t public
+
+  empty : t
+  empty = record { values = [] ; subtrees = [] }
+
+open Trie using (trie ; values ; subtrees) public
 
 {-# TERMINATING #-}
-trie-decoder : Decoder Trie
+trie-decoder : Decoder Trie.t
 trie-decoder =
   let values-decoder = from-Maybe [] <$> optional ">>" (list string)
       subtrees-decoder = λ where
@@ -41,14 +47,14 @@ trie-decoder =
         _ → nothing
    in ⦇ trie values-decoder subtrees-decoder ⦈
 
-load-keymap : String → IO (Maybe Trie)
+load-keymap : String → IO (Maybe Trie.t)
 load-keymap = fmap (parse-json >=> trie-decoder) ∘ load-file
 
 -- Θ(min(|xs|, depth(t)))
-match : List String → Trie → Maybe Trie
+match : List String → Trie.t → Maybe Trie.t
 match [] t = just t
 match (x ∷ xs) t = find (λ (k , _) → k == x) (t .subtrees) >>= match xs ∘ proj₂
 
 -- Suggest which characters can be used to continue traverse the trie
-next-characters : Trie → List String
+next-characters : Trie.t → List String
 next-characters = sort ∘ map proj₁ ∘ subtrees

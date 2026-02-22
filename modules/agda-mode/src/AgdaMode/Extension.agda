@@ -14,9 +14,10 @@ open import Agda.Builtin.Bool
 open import Agda.Builtin.Nat
 open import Function hiding (id)
 open import Data.Monoid
+open import Data.Nat
 
 import Data.IO as IO
-open IO using (IO)
+open IO using (IO ; when ; unless)
 open import Data.JSON
 open import Data.JSON.Decode
 open import Data.Map
@@ -61,14 +62,7 @@ open MonadPlus ⦃ ... ⦄ using (⊘ ; _<|>_)
 record InputModeBuffer : Set where field
   start-pos : Position.t
   buffer : String
-
-IMB-combine : InputModeBuffer → InputModeBuffer → InputModeBuffer
-IMB-combine record { start-pos = p₁ ; buffer = b₁ } record { start-pos = p₂ ; buffer = b₂ } =
-  record { start-pos = p₁ ; buffer = b₁ ++ b₂ }
-
-instance
-  IMB-Semigroup : Semigroup InputModeBuffer
-  IMB-Semigroup = record { _<>_ = IMB-combine }
+open InputModeBuffer
 
 record Model : Set where field
     panel : Maybe (Panel.t ⊤)
@@ -82,7 +76,7 @@ record Model : Set where field
     running-info : String
     input-mode-buffer : Maybe InputModeBuffer
     underline-decoration : DecorationType.t
-    keymap : Trie
+    keymap : Trie.t
 open Model
 
 data Msg : Set where
@@ -91,7 +85,7 @@ data Msg : Set where
   tokens-request : IO.Ref.t (Maybe SemanticTokens.t) → Msg
   definition-request : TextDocument.t → Position.t → IO.Ref.t (Maybe Location.t) → Msg
   new-active-editor : Maybe TextEditor.t → Msg
-  type-request : JSON → Msg
+  type-request : String → Msg
 
 -- TODO: Handle unexpected closes
 spawn-agda : (Msg → IO ⊤) → IO Process.t
@@ -100,7 +94,7 @@ spawn-agda update = do
   Process.on-data proc λ buf → update (agda-stdout-update buf)
   pure proc
 
-init : Trie → IO Model
+init : Trie.t → IO Model
 init keymap = do
   tokens-request-emitter ← EventEmitter.new
   sbi₁ ← StatusBarItem.create "agdaMode.statusBar" StatusBarItem.right nothing
@@ -161,8 +155,8 @@ register model update = do
       update (definition-request doc pos r)
       IO.Ref.get r
 
-  register-command-with-args "type" λ args → update (type-request args)
-    -- execute-command "default:type" (⊤ ∋ args)
+  register-command-with-args "type" λ args →
+    maybe (pure tt) (update ∘ type-request) $ required "text" string args
 
   pure record model
     { agda = just proc
@@ -268,18 +262,18 @@ display-info-decoder = do
       "Error" → error <$> required "error" (required "message" string)
       _ → ⊘
 
-_when_ : A → Bool → List A
-a when true = [ a ]
-a when false = []
+_when'_ : A → Bool → List A
+a when' true = [ a ]
+a when' false = []
 
 show-display-info : DisplayInfo → String
 show-display-info (all-goals-warnings errors inv vis warns) =
   unlines $
-               ("---------- Goals ----------\n" when not (null? (inv ⟨ append ⟩ vis)))
+               ("---------- Goals ----------\n" when' not (null? (inv ⟨ append ⟩ vis)))
     ⟨ append ⟩ (map show-goal (List.append vis inv))
-    ⟨ append ⟩ ("---------- Errors ----------\n" when not (null? errors))
+    ⟨ append ⟩ ("---------- Errors ----------\n" when' not (null? errors))
     ⟨ append ⟩ errors
-    ⟨ append ⟩ ("---------- Warnings ----------\n" when not (null? warns))
+    ⟨ append ⟩ ("---------- Warnings ----------\n" when' not (null? warns))
     ⟨ append ⟩ warns
 show-display-info (error message) = message
 
@@ -313,9 +307,9 @@ open Status
 
 show-status : Status → String
 show-status status = intercalate "," $
-             ("Checked" when status .checked)
-  ⟨ append ⟩ ("ShowImpl" when status .show-implicit)
-  ⟨ append ⟩ ("ShowIrr" when status .show-irrelevant)
+             ("Checked" when' status .checked)
+  ⟨ append ⟩ ("ShowImpl" when' status .show-implicit)
+  ⟨ append ⟩ ("ShowIrr" when' status .show-irrelevant)
 
 status-decoder : Decoder Status
 status-decoder = do
@@ -407,6 +401,21 @@ clear-imb model e = do
   StatusBarItem.hide (model .input-mode-status-item)
   pure record model { input-mode-buffer = nothing }
 
+apply-imb : Model → InputModeBuffer → Trie.t → TextEditor.t → IO Model
+apply-imb model imb t e = do
+  let next = join (next-characters t)
+  range ← Range.new (imb .start-pos) <$> TextEditor.cursor-pos e
+  TextEditor.set-decoration (model .underline-decoration) range e
+  StatusBarItem.set-text (model .input-mode-status-item) ("\\" ++ imb .buffer ++ "[" ++ next ++ "]")
+  StatusBarItem.show (model .input-mode-status-item)
+  case t .values of λ where
+    (x ∷ _) → do
+      end-pos ← TextEditor.cursor-pos e
+      let r = Range.new (imb .start-pos) end-pos
+      TextEditor.edit [ Edit.replace r x ] e
+      pure model
+    [] → pure model
+
 update : (Msg → IO ⊤) → Msg → Model → IO Model
 update recurse msg model = trace msg $ case msg of λ where
   load-file-msg → case model .current-doc of λ where
@@ -459,56 +468,38 @@ update recurse msg model = trace msg $ case msg of λ where
             pure model
         nothing → pure model
 
-  (type-request o) → case o of λ where
-    (j-object m) → case m !? "text" of λ where
-      (just (j-string text)) → do
-        execute-command "default:type" (j-object ("text" ↦ j-string text))
-        new-model ← if text =~ "^\\s$"
-          then ( -- Check for any whitespace character
-            TextEditor.active-editor >>= λ where
-              (just e) → clear-imb model e
-              nothing → pure model)
-          else do
-            if text =~ "^\\\\$"
-              then (TextEditor.active-editor >>= λ where
-                (just ed) → do
-                  start-pos ← Position.left 1 <$> TextEditor.cursor-pos ed
-                  let imb = record { start-pos = start-pos ; buffer = "" }
-                  pure record model { input-mode-buffer = just imb }
-                nothing → pure model)
-              else (case model .input-mode-buffer of λ where
-                (just imb@record { buffer = b }) →
-                  pure record model { input-mode-buffer = just (record imb { buffer = b ++ text }) }
-                nothing → pure model)
+  (type-request "\\") → TextEditor.active-editor >>= maybe (pure model) λ e → do
+    execute-command "default:type" (j-object ("text" ↦ j-string "\\"))
 
-        TextEditor.active-editor >>= λ where
-          (just e) → case new-model .input-mode-buffer of λ where
-            (just record { start-pos = start-pos ; buffer = b }) → do
-              range ← Range.new start-pos <$> TextEditor.cursor-pos e
-              e |> TextEditor.set-decoration (model .underline-decoration) range
-              case match (split b) (new-model .keymap) of λ where
-                (just record { values = [ x ] ; subtrees = [] }) → do
-                  end-pos ← TextEditor.cursor-pos e
-                  let r = Range.new start-pos end-pos
-                  TextEditor.edit [ Edit.replace r x ] e
-                  clear-imb new-model e
-                (just t) → do
-                  let next = join (next-characters t)
-                  StatusBarItem.set-text (model .input-mode-status-item) ("\\" ++ b ++ "[" ++ next ++ "]")
-                  StatusBarItem.show (model .input-mode-status-item)
-                  case Trie.values t of λ where
-                    (x ∷ xs) → do
-                      end-pos ← TextEditor.cursor-pos e
-                      let r = Range.new start-pos end-pos
-                      TextEditor.edit [ Edit.replace r x ] e
-                      pure tt
-                    [] → pure tt
-                  pure new-model
-                nothing → clear-imb new-model e
-            nothing → pure new-model
-          nothing → pure new-model
-      _ → pure model
-    _ → pure model
+    -- Create a fresh imb and insert it into the model
+    start-pos ← Position.left 1 <$> TextEditor.cursor-pos e
+    let imb = record { start-pos = start-pos ; buffer = "" }
+    let model = record model { input-mode-buffer = just imb }
+
+    apply-imb model imb (model .keymap) e
+
+  (type-request text) → TextEditor.active-editor >>= maybe (pure model) λ e → do
+    execute-command "default:type" (j-object ("text" ↦ j-string text))
+
+    model .input-mode-buffer |> maybe (pure model) λ imb → do
+      -- Update the imb and model
+      let imb = record imb { buffer = imb .buffer ++ text }
+      let model = record model { input-mode-buffer = just imb }
+
+      -- Query the trie with the new buffer
+      let t = from-Maybe Trie.empty $ match (split (imb .buffer)) (model .keymap)
+
+      -- If there is a value (and potentially subtrees) we can still replace
+      model ← if null? (t .values) ∧ null? (t .subtrees)
+        then pure model
+        else apply-imb model imb t e
+
+      -- If there are no more suggestions, clear the input mode
+      model ← if null? (t .subtrees) ∧ ∥ t .values ∥ ≤ 1
+        then clear-imb model e
+        else pure model
+
+      pure model
 
 {-# TERMINATING #-}
 activate : IO ⊤

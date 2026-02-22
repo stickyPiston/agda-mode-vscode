@@ -33,7 +33,7 @@ for = flip map
 
 null? : List A → 𝔹
 null? [] = true
-null? _ = true
+null? _ = false
 
 _++_ : List A → List A → List A
 [] ++ b = b
@@ -76,6 +76,11 @@ find p (x ∷ xs) = if p x then just x else (find p xs)
   const found = xs.find(p);
   return found ? (x => x["just"](found)) : (x => x["nothing"]());
 } #-}
+
+∥_∥ : List A → Nat
+∥ [] ∥ = 0
+∥ _ ∷ xs ∥ = 1 + ∥ xs ∥
+{-# COMPILE JS ∥_∥ = _ => _ => xs => BigInt(xs.length) #-}
 
 open import Effect.Applicative
 
