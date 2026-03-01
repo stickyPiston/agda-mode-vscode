@@ -18,3 +18,7 @@ postulate register-command-with-args : {A : Set} → String → (A → IO ⊤) �
 postulate execute-command : {A : Set} → String → A → IO ⊤
 {-# COMPILE JS execute-command = _ => name => a => async () =>
   AgdaModeImports.vscode.commands.executeCommand(name, a) #-}
+
+postulate execute-command₂ : {A B : Set} → String → A → B → IO ⊤
+{-# COMPILE JS execute-command₂ = _ => _ => name => a => b => async () =>
+  AgdaModeImports.vscode.commands.executeCommand(name, a, b) #-}

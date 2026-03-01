@@ -1,6 +1,6 @@
 module Data.Nat where
 
-open import Agda.Builtin.Nat
+open import Agda.Builtin.Nat public
 open import Data.Bool
 
 ℕ : Set
@@ -14,3 +14,15 @@ suc a > suc b = a > b
 
 _≤_ : ℕ → ℕ → 𝔹
 a ≤ b = not (a > b)
+
+min : ℕ → ℕ → ℕ
+min a b = if a ≤ b then a else b
+
+max : ℕ → ℕ → ℕ
+max a b = if a ≤ b then b else a
+
+postulate ⌊_/_⌋ : ℕ → ℕ → ℕ
+{-# COMPILE JS ⌊_/_⌋ = a => b => a / b #-}
+
+_mod_ : ℕ → ℕ → ℕ
+a mod b = a - ⌊ a / b ⌋ * b

@@ -28,6 +28,21 @@
         "command": "agda-mode.load-file",
         "when": "editorLangId =~ /agda/",
         "key": "ctrl+c ctrl+l"
+      },
+      {
+        "command": "agda-mode.backspace",
+        "when": "agda-mode.inInputMode",
+        "key": "backspace"
+      },
+      {
+        "command": "agda-mode.arrow-left",
+        "when": "agda-mode.inInputMode",
+        "key": "left"
+      },
+      {
+        "command": "agda-mode.arrow-right",
+        "when": "agda-mode.inInputMode",
+        "key": "right"
       }
     ],
     "commands": [

@@ -2,16 +2,17 @@ module Data.List where
 
 open import Agda.Primitive
 open import Agda.Builtin.List public
-open import Agda.Builtin.Nat
+open import Data.Nat
 open import Function
 open import Data.Maybe
 open import Data.Product
 open import Data.Bool
 
 private variable
-  a b : Level
+  a b c : Level
   A : Set a
   B : Set b
+  C : Set c
   F M : Set a → Set b
 
 pattern [_] a = a ∷ []
@@ -43,6 +44,16 @@ append : List A → List A → List A
 append = _++_
 
 {-# COMPILE JS _++_ = a => A => l => r => [...l, ...r] #-}
+
+infix 3 _!!_
+
+_!!_ : List A → Nat → Maybe A
+[]     !! _ = nothing
+x ∷ _  !! 0 = just x
+_ ∷ xs !! n = xs !! n - 1
+
+{-# COMPILE JS _!!_ = _ => _ => xs => n =>
+  n < xs.length ? (a => a["just"](xs[n])) : (a => a["nothing"]()) #-}
 
 concat : List (List A) → List A
 concat = foldr [] λ ac l → l ++ ac
@@ -81,6 +92,28 @@ find p (x ∷ xs) = if p x then just x else (find p xs)
 ∥ [] ∥ = 0
 ∥ _ ∷ xs ∥ = 1 + ∥ xs ∥
 {-# COMPILE JS ∥_∥ = _ => _ => xs => BigInt(xs.length) #-}
+
+postulate slice : List A → Nat → Nat → List A
+{-# COMPILE JS slice = _ => _ => xs => s => e => xs.slice(Number(s), Number(e)) #-}
+
+zip-with : (A → B → C) → List A → List B → List C
+zip-with f [] ys = []
+zip-with f xs [] = []
+zip-with f (x ∷ xs) (y ∷ ys) = f x y ∷ zip-with f xs ys
+
+{-# COMPILE JS zip-with = _ => _ => _ => _ => _ => _ => f => as => bs => {
+  let res = [];
+  for (let i = 0; i < Math.min(as.length, bs.length); i++)
+    res.push(f(as[i])(bs[i]));
+  return res;
+} #-}
+
+infix 5 _to_
+
+{-# TERMINATING #-}
+_to_ : ℕ → ℕ → List ℕ
+n to k = if k ≤ n then [] else n ∷ (suc n to k)
+{-# COMPILE JS _to_ = n => k => Array(Math.max(0, Number(k - n))).fill(null).map((_, i) => BigInt(i) + n) #-}
 
 open import Effect.Applicative
 

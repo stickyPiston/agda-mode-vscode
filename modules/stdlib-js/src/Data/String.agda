@@ -13,14 +13,17 @@ infixl 10 _++_
 _++_ : String → String → String
 _++_ = primStringAppend
 
-open import Data.List
+open import Data.List using (List)
 open import Agda.Builtin.Nat
 
 postulate _starts-with_ : String → String → 𝔹
 {-# COMPILE JS _starts-with_ = s => pre => s.startsWith(pre) #-}
 
-postulate slice : Nat → String → String
-{-# COMPILE JS slice = n => s => s.slice(Number(n)) #-}
+postulate slice : Nat → Nat → String → String
+{-# COMPILE JS slice = start => end => s => s.slice(Number(start), Number(end)) #-}
+
+postulate ∥_∥ : String → Nat
+{-# COMPILE JS ∥_∥ = s => BigInt(s.length) #-}
 
 postulate lines : String → List String
 {-# COMPILE JS lines = xs => xs.split("\n") #-}
