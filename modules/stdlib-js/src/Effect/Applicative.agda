@@ -9,7 +9,7 @@ private variable
   A B C : Set ℓ₁
 
 record Applicative (F : Set ℓ₁ → Set ℓ₂) : Set (lsuc (ℓ₁ ⊔ ℓ₂)) where
-  infixl 8 _<*>_
+  infixl 3 _<*>_
 
   field
     functor : Functor F

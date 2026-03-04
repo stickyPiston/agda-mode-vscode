@@ -33,6 +33,9 @@ _$_ = flip _|>_
 case_of_ : A → (A → B) → B
 case_of_ = _|>_
 
+case_returning_of_ : (a : A) → (B : A → Set) → ((a : A) → B a) → B a
+case x returning B of f = f x
+
 id : A → A
 id a = a
 

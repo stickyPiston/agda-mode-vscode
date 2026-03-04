@@ -36,6 +36,8 @@ null? : List A → 𝔹
 null? [] = true
 null? _ = false
 
+infixl 10 _++_
+
 _++_ : List A → List A → List A
 [] ++ b = b
 (x ∷ a) ++ b = x ∷ (a ++ b)
@@ -60,6 +62,17 @@ concat = foldr [] λ ac l → l ++ ac
 
 concat-for : List A → (A → List B) → List B
 concat-for = concat ∘₂ for
+
+reverse : List A → List A
+reverse [] = []
+reverse (x ∷ xs) = reverse xs ++ [ x ]
+{-# COMPILE JS reverse = a => A => as => as.reverse() #-}
+
+take : ℕ → List A → List A
+take zero xs = []
+take (suc n) [] = []
+take (suc n) (x ∷ xs) = x ∷ take n xs
+{-# COMPILE JS take = a => A => n => xs => xs.slice(0, Number(n)) #-}
 
 -- TODO: This function is a little dubious, probably needs to be fixed
 postulate sort : List A → List A
@@ -114,6 +127,7 @@ infix 5 _to_
 _to_ : ℕ → ℕ → List ℕ
 n to k = if k ≤ n then [] else n ∷ (suc n to k)
 {-# COMPILE JS _to_ = n => k => Array(Math.max(0, Number(k - n))).fill(null).map((_, i) => BigInt(i) + n) #-}
+
 
 open import Effect.Applicative
 

@@ -11,7 +11,7 @@ record Functor (F : Set ℓ₁ → Set ℓ₂) : Set (lsuc (ℓ₁ ⊔ ℓ₂)) 
   field
     fmap : (A → B) → F A → F B
 
-  infixl 9 _<$>_
+  infixl 4 _<$>_
   _<$>_ : (A → B) → F A → F B
   _<$>_ = fmap
 

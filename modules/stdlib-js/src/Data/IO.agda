@@ -72,16 +72,16 @@ module Ref where
   open import Function using (_∘_)
   open import Agda.Builtin.Unit
 
-  postulate t : ∀ {ℓ} → Set ℓ → Set ℓ
+  postulate t : Set → Set
 
-  postulate new : {ℓ : Level} {A : Set ℓ} → A → IO (t A)
-  {-# COMPILE JS new = _ => _ => a => async () => ({ value: a }) #-}
+  postulate new : {A : Set} → A → IO (t A)
+  {-# COMPILE JS new = _ => a => async () => ({ value: a }) #-}
 
-  postulate get : {ℓ : Level} {A : Set ℓ} → t A → IO A
-  {-# COMPILE JS get = _ => _ => ref => async () => ref.value #-}
+  postulate get : {A : Set} → t A → IO A
+  {-# COMPILE JS get = _ => ref => async () => ref.value #-}
 
-  postulate set : {ℓ : Level} {A : Set ℓ} → t A → A → IO (Lift ℓ ⊤)
-  {-# COMPILE JS set = _ => _ => ref => a => async () => { ref.value = a; return a => a["tt"]() } #-}
+  postulate set : {A : Set} → t A → A → IO ⊤
+  {-# COMPILE JS set = _ => ref => a => async () => { ref.value = a; return a => a["tt"]() } #-}
 
-  modify : {ℓ : Level} {A : Set ℓ} → (A → A) → t A → IO (Lift ℓ ⊤)
+  modify : {A : Set} → (A → A) → t A → IO ⊤
   modify f ref = get ref >>= set ref ∘ f
