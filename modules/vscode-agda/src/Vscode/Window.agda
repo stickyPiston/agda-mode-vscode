@@ -86,3 +86,8 @@ module Window where
     const answer = await AgdaModeImports.vscode.window.showInputBox();
     return answer ? (a => a["just"](answer)) : (a => a["nothing"]());
   } #-}
+
+  postulate quick-pick : List String → IO String
+  {-# COMPILE JS quick-pick = options => async () => {
+    return await AgdaModeImports.vscode.window.showQuickPick(options);
+  } #-}

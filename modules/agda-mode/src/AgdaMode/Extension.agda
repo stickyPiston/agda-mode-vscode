@@ -106,6 +106,10 @@ show-general-info-cmds = StringMap.empty
   |> StringMap.insert "agda-mode.show-constraints" AgdaCommand.show-constraints
   |> StringMap.insert "agda-mode.show-metas" AgdaCommand.show-metas
 
+backends : StringMap.t Backend.t
+backends = (ghc true ∷ ghc false ∷ js ∷ html ∷ latex ∷ quicklatex ∷ [])
+  |> foldr StringMap.empty λ m b → StringMap.insert (Backend.show b) b m
+
 private
   postulate timeout : Nat → IO ⊤
   {-# COMPILE JS timeout = n => () => new Promise(resolve => setTimeout(() => resolve(), Number(n))) #-}
@@ -224,6 +228,11 @@ activate = do
     register-command name $ do
       just intr ← AgdaInteraction.from-AgdaCommand (cmd as-is) where _ → pure tt
       AgdaProcess.send-command intr agda
+
+  register-command "agda-mode.compile-file" $ do
+    just backend ← backends !?_ <$> Window.quick-pick (StringMap.keys backends) where _ → pure tt
+    just intr ← AgdaInteraction.from-AgdaCommand (AgdaCommand.compile-file backend) where _ → pure tt
+    AgdaProcess.send-command intr agda
 
   model ← IO.Ref.get model-ref
   stp ← SemanticTokensProvider.new

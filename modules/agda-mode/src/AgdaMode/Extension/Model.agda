@@ -78,6 +78,23 @@ module Rewrite where
   show normalised = "Normalised"
 open Rewrite hiding (t ; show) public
 
+module Backend where
+  data t : Set where
+    ghc : Bool → t
+    js html latex quicklatex : t
+
+  show : t → String
+  show (ghc main?) = if main? then "GHC" else "GHC (no main)" 
+  show js = "JS"
+  show html = "HTML"
+  show latex = "LaTeX"
+  show quicklatex = "QuickLaTeX"
+
+  encode : t → String
+  encode (ghc main?) = if main? then "GHC" else "GHCNoMain"
+  encode t = show t
+open Backend using (ghc ; js ; html ; latex ; quicklatex) public
+
 module AgdaCommand where
   data t : Set where
     load : t
@@ -88,7 +105,7 @@ module AgdaCommand where
       : Rewrite.t → InteractionPoint.t → t
     show-metas show-constraints : Rewrite.t → t
     make-case : InteractionPoint.t → t
-
+    compile-file : Backend.t → t
 
   show-pos : Nat → TextDocument.t → String
   show-pos offset doc =
@@ -134,6 +151,7 @@ module AgdaCommand where
   show-list doc (show-constraints r) = "Cmd_constraints" ∷ Rewrite.show r ∷ []
   show-list doc (show-metas r) = "Cmd_metas" ∷ Rewrite.show r ∷ []
   show-list doc (make-case ip) = "Cmd_make_case" ∷ show-goal-command doc ip
+  show-list doc (compile-file backend) = "Cmd_compile" ∷ Backend.encode backend ∷ ("\"" ++ TextDocument.file-name doc ++ "\"") ∷ "[]" ∷ []
 
   show : TextDocument.t → t → String
   show = intercalate " " ∘₂ show-list

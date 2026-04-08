@@ -116,6 +116,10 @@
       {
         "command": "agda-mode.auto-goal",
         "key": "ctrl+c ctrl+a"
+      },
+      {
+        "command": "agda-mode.compile-file",
+        "key": "ctrl+c ctrl+x ctrl+c"
       }
     ],
     "commands": [
@@ -158,6 +162,10 @@
       {
         "command": "agda-mode.auto-goal",
         "title": "Fill hole by automatic proof search"
+      },
+      {
+        "command": "agda-mode.compile-file",
+        "title": "Compile file"
       }
     ]
   },

@@ -3,7 +3,7 @@ module Data.Map where
 open import Data.String
 open import Data.Maybe
 open import Data.Maybe.Effectful
-open import Data.List using (List ; foldr)
+open import Data.List using (List ; foldr ; map)
 open import Data.Product
 open import Function
 
@@ -27,6 +27,9 @@ module StringMap where
   postulate entries : ∀ {V} → t V → List (String × V)
   {-# COMPILE JS entries = _ => m =>
     Object.entries(m).map(([k, v]) => ({ "_,_": x => x["_,_"](k, v) })) #-}
+
+  keys : ∀ {V} → t V → List String
+  keys m = entries m |> map λ (k , _) → k
 
   from : ∀ {V} → List (String × V) → t V
   from = foldr empty (flip (uncurry insert))
