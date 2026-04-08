@@ -481,8 +481,8 @@ private
   postulate timeout : Nat → IO ⊤
   {-# COMPILE JS timeout = n => () => new Promise((resolve) => setTimeout(() => resolve(), Number(n))) #-}
 
-handle-give-action : Model → GiveAction → IO Model
-handle-give-action model give = TextEditor.active-editor >>= maybe (pure model) λ e → do
+handle-give-action : (AgdaInteraction.t → IO ⊤) → Model → GiveAction → IO Model
+handle-give-action send-command model give = TextEditor.active-editor >>= maybe (pure model) λ e → do
   doc ← TextEditor.document e
   let ip-range = OffsetRange.to-vsc-range doc (give .interaction-point .range)
       -- TODO: Change get-text to be IO
@@ -493,7 +493,7 @@ handle-give-action model give = TextEditor.active-editor >>= maybe (pure model) 
         (str s) → [ Edit.replace ip-range s ]
   TextEditor.edit edits e
   TextDocument.save doc
-  pure model
+  model <$ send-command (iotcm doc AgdaCommand.load)
 
 data MakeCaseVariant : Set where
   function extlam : MakeCaseVariant
@@ -558,7 +558,7 @@ handle-agda-message send-command model =
   | (handle-running-info model) running-info-decoder
   | (handle-jump-to-error model) jump-to-error-decoder
   | (handle-interaction-points model) interaction-points-decoder
-  | (handle-give-action model) give-action-decoder
+  | (handle-give-action send-command model) give-action-decoder
   | (handle-make-case send-command model) make-case-decoder
   -- | (λ x → trace x $ pure model) any
   ⦈

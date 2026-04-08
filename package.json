@@ -112,6 +112,10 @@
         "command": "agda-mode.arrow-right",
         "when": "agda-mode.inInputMode",
         "key": "right"
+      },
+      {
+        "command": "agda-mode.auto-goal",
+        "key": "ctrl+c ctrl+a"
       }
     ],
     "commands": [
@@ -150,6 +154,10 @@
       {
         "command": "agda-mode.make-case",
         "title": "Make case"
+      },
+      {
+        "command": "agda-mode.auto-goal",
+        "title": "Fill hole by automatic proof search"
       }
     ]
   },

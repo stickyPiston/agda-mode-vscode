@@ -94,6 +94,7 @@ goal-context-cmds = StringMap.empty
   |> StringMap.insert "agda-mode.goal-env" AgdaCommand.goal-type-context
   |> StringMap.insert "agda-mode.goal-context-infer" AgdaCommand.goal-type-context-infer
   |> StringMap.insert "agda-mode.goal-context-elab" AgdaCommand.goal-type-context-check
+  |> StringMap.insert "agda-mode.auto-goal" AgdaCommand.auto-goal
 
 goal-give-cmds : StringMap.t (Bool → InteractionPoint.t → AgdaCommand.t)
 goal-give-cmds = StringMap.empty
