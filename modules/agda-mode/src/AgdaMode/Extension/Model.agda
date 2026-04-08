@@ -83,6 +83,7 @@ module AgdaCommand where
     context goal-type infer goal-type-context goal-type-context-infer goal-type-context-check
       : Rewrite.t → InteractionPoint.t → t
     show-metas show-constraints : Rewrite.t → t
+    make-case : InteractionPoint.t → t
 
   show-pos : Nat → TextDocument.t → String
   show-pos offset doc =
@@ -126,6 +127,7 @@ module AgdaCommand where
   show-list doc (goal-type-context-check r ip) = "Cmd_goal_type_context_check" ∷ show-goal-rewrite-command doc r ip
   show-list doc (show-constraints r) = "Cmd_constraints" ∷ Rewrite.show r ∷ []
   show-list doc (show-metas r) = "Cmd_metas" ∷ Rewrite.show r ∷ []
+  show-list doc (make-case ip) = "Cmd_make_case" ∷ show-goal-command doc ip
 
   show : TextDocument.t → t → String
   show = intercalate " " ∘₂ show-list

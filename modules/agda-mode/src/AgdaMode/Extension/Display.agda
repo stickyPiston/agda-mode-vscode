@@ -427,8 +427,8 @@ handle-jump-to-error model jump-to-error = do
     }
   pure model
 
-handle-interaction-points : (AgdaInteraction.t → IO ⊤) → Model → List InteractionPoint.t → IO Model
-handle-interaction-points send-command model ips = TextEditor.active-editor >>= maybe (pure model) λ e → do
+handle-interaction-points : Model → List InteractionPoint.t → IO Model
+handle-interaction-points model ips = TextEditor.active-editor >>= maybe (pure model) λ e → do
   doc ← TextEditor.document e
   let open TraversableM {{ ... }}
   new-ips ← forM ips λ ip → if ip .range .length > 1
@@ -484,18 +484,68 @@ private
 handle-give-action : Model → GiveAction → IO Model
 handle-give-action model give = TextEditor.active-editor >>= maybe (pure model) λ e → do
   doc ← TextEditor.document e
-  model .loaded-files !? TextDocument.file-name doc |> maybe (pure model) λ file →
-    let ip-range = OffsetRange.to-vsc-range doc (give .interaction-point .range)
-        -- TODO: Change get-text to be IO
-        content = trim $ TextDocument.get-text (OffsetRange.to-vsc-range doc $ InteractionPoint.content-range (give .interaction-point)) doc
-        edits = give .give-result |> λ where
-          parens → [ Edit.replace ip-range ("(" ++ content ++ ")") ]
-          no-parens → [ Edit.replace ip-range content ]
-          (str s) → [ Edit.replace ip-range s ]
-     in do
-      TextEditor.edit edits e
-      TextDocument.save doc
-      pure model
+  let ip-range = OffsetRange.to-vsc-range doc (give .interaction-point .range)
+      -- TODO: Change get-text to be IO
+  let content = trim $ TextDocument.get-text (OffsetRange.to-vsc-range doc $ InteractionPoint.content-range (give .interaction-point)) doc
+  let edits = give .give-result |> λ where
+        parens → [ Edit.replace ip-range ("(" ++ content ++ ")") ]
+        no-parens → [ Edit.replace ip-range content ]
+        (str s) → [ Edit.replace ip-range s ]
+  TextEditor.edit edits e
+  TextDocument.save doc
+  pure model
+
+data MakeCaseVariant : Set where
+  function extlam : MakeCaseVariant
+
+make-case-variant-decoder : Decoder MakeCaseVariant
+make-case-variant-decoder = string >>= λ
+  { "Function" → succeed function ; "ExtendedLambda" → succeed extlam ; _ → ⊘ }
+
+record MakeCase : Set where
+  constructor mkMakeCase
+  field
+    clauses : List String
+    ip : InteractionPoint.t
+    variant : MakeCaseVariant
+
+make-case-decoder : Decoder MakeCase
+make-case-decoder = do
+  "MakeCase" ← required "kind" string where _ → ⊘
+  ⦇ mkMakeCase
+    (required "clauses" (list string))
+    (required "interactionPoint" interaction-point-decoder)
+    (required "variant" make-case-variant-decoder) ⦈
+
+handle-make-case : (AgdaInteraction.t → IO ⊤) → Model → MakeCase → IO Model
+handle-make-case send-command model (mkMakeCase clauses ip variant) = do
+  just e ← TextEditor.active-editor where _ → pure model
+  doc ← TextEditor.document e
+  
+  -- We replace the entire line the interaction point is located on. While this is not correct,
+  -- we can't really do better than this. The compiler doesn't tell us where the clause is that
+  -- we need to replace.
+  --
+  -- NOTE: This bug also exists in the emacs-mode.
+  --   before        after
+  -- ```agda     | ```agda
+  -- f =         | f =
+  --   {!  !}    |   f x = ?
+  -- ```         | ```
+  let pos = TextDocument.position-at doc (ip .range .start)
+  let line = TextDocument.line-at doc (Position.line pos)
+  TextEditor.edit [ Edit.replace (TextLine.range line) (intercalate "\n" clauses) ] e 
+  TextDocument.save doc
+  
+  -- We need to issue a reload because Agda sends interaction points that, for some reason,
+  -- have already been expanded by the compiler. This means that the interaction points message
+  -- that follows the make case message, will not expand the question marks that we have inserted
+  -- here, since Agda sends 6-wide ranges instead of 1-wide at the places the questions marks are
+  -- located.
+  --
+  -- NOTE: Fixing this would require the compiler to not expand the question marks. This would
+  -- be more consistent with the interaction points messages that refine sends too.
+  model <$ send-command (iotcm doc AgdaCommand.load)
 
 -- TODO: Change this to have type Decoder (Model → IO Model)
 handle-agda-message : (AgdaInteraction.t → IO ⊤) → Model → Decoder (IO Model)
@@ -507,7 +557,8 @@ handle-agda-message send-command model =
   | (handle-clear-running-info model) clear-running-info-decoder
   | (handle-running-info model) running-info-decoder
   | (handle-jump-to-error model) jump-to-error-decoder
-  | (handle-interaction-points send-command model) interaction-points-decoder
+  | (handle-interaction-points model) interaction-points-decoder
   | (handle-give-action model) give-action-decoder
+  | (handle-make-case send-command model) make-case-decoder
   -- | (λ x → trace x $ pure model) any
   ⦈

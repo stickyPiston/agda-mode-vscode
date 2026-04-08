@@ -206,6 +206,11 @@ activate = do
       just intr ← AgdaInteraction.under-cursor-command model (cmd (get-pmLambda o)) where _ → pure tt
       AgdaProcess.send-command intr agda
 
+  register-command "agda-mode.make-case" $ do
+    model ← IO.Ref.get model-ref
+    just intr ← AgdaInteraction.under-cursor-command model AgdaCommand.make-case where _ → pure tt
+    AgdaProcess.send-command intr agda
+
   register-command "agda-mode.next-goal" $ do
     model ← IO.Ref.get model-ref
     tt <$ jump-to-goal model λ o ips → find (λ ip → ip .range .start + 3 > o) ips <|> (ips !! 0)
