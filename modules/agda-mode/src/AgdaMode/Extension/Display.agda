@@ -231,6 +231,7 @@ data DisplayInfo : Set where
   error : String → DisplayInfo
   context : Context → DisplayInfo
   goal-info : InteractionPoint.t → GoalInfo → DisplayInfo
+  intro-not-found : DisplayInfo
 
 error-decoder : Decoder String
 error-decoder = required "message" string
@@ -301,6 +302,7 @@ display-info-decoder = do
       "GoalSpecific" → goal-info
         <$> required "interactionPoint" interaction-point-decoder
         <*> required "goalInfo" goal-info-decoder
+      "IntroNotFound" → succeed intro-not-found
       _ → ⊘
 
 _when'_ : A → 𝔹 → List A
@@ -323,6 +325,7 @@ show-display-info (goal-info _ info) =
   let context-info = info .entries |> maybe "" (("\n----- Context ---------------------------\n" ++_) ∘ intercalate "\n" ∘ map show-context-item) in
   let aux-info = show-aux (info .type-aux) in
   "Goal: " ++ info .type ++ aux-info ++ context-info
+show-display-info intro-not-found = "No introduction forms found."
 
 open import Agda.Builtin.Equality
 
