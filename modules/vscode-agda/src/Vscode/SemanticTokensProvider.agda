@@ -15,7 +15,7 @@ open import Vscode.Common
 module Event where
   postulate t : Set → Set
 
-  postulate listen : ∀ {A} → t A → (A → IO ⊤) → IO Disposable
+  postulate listen : ∀ {A} → t A → (A → IO ⊤) → IO Disposable.t
   {-# COMPILE JS listen = _ => event => handler => async () => event(handler) #-}
 
 module EventEmitter where
@@ -89,7 +89,7 @@ module SemanticTokensProvider where
 
   open import Data.JSON
 
-  private postulate register' : JSON → t → Legend.internal-t → IO Disposable
+  private postulate register' : JSON → t → Legend.internal-t → IO Disposable.t
   {-# COMPILE JS register' = selector => stp => legend => async () =>
     AgdaModeImports.vscode.languages.registerDocumentSemanticTokensProvider(selector, stp, legend) #-}
 
@@ -97,5 +97,5 @@ module SemanticTokensProvider where
   open IO.Effectful
   open Monad ⦃ ... ⦄
 
-  register : DocumentSelector.t → t → Legend.t → IO Disposable
+  register : DocumentSelector.t → t → Legend.t → IO Disposable.t
   register selector stp legend = Legend.build legend >>= register' (DocumentSelector.encode selector) stp

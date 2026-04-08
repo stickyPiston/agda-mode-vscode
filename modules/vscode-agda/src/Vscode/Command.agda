@@ -7,11 +7,11 @@ open import Data.IO
 
 open import Vscode.Common
 
-postulate register-command : String → IO ⊤ → IO Disposable
+postulate register-command : String → IO ⊤ → IO Disposable.t
 {-# COMPILE JS register-command = name => action => async () =>
   AgdaModeImports.vscode.commands.registerCommand(name, () => { action() }) #-}
 
-postulate register-command-with-args : {A : Set} → String → (A → IO ⊤) → IO Disposable
+postulate register-command-with-args : {A : Set} → String → (A → IO ⊤) → IO Disposable.t
 {-# COMPILE JS register-command-with-args = _ => name => action => async () =>
   AgdaModeImports.vscode.commands.registerCommand(name, args => { action(args)() }) #-}
 

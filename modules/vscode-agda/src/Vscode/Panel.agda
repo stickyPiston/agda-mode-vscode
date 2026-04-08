@@ -87,7 +87,7 @@ module Panel where
     postulate post-message : ∀ {A} → t A → JSON → IO ⊤
     {-# COMPILE JS post-message = panel => json => async () => { panel.webview.postMessage(json); return a => a["tt"]() } #-}
 
-    postulate on-message : ∀ {A} → t A → (JSON → IO ⊤) → IO Disposable
+    postulate on-message : ∀ {A} → t A → (JSON → IO ⊤) → IO Disposable.t
     {-# COMPILE JS on-message = _ => panel => listener => async () =>
       panel.webview.onDidReceiveMessage(msg => listener(msg)(_ => {})) #-}
 
@@ -108,7 +108,7 @@ module Panel where
   open IO.Effectful
   open Monad ⦃ ... ⦄
 
-  on-message : ∀ {A} ⦃ c : Cloneable A ⦄ → t A → (A → IO ⊤) → IO Disposable
+  on-message : ∀ {A} ⦃ c : Cloneable A ⦄ → t A → (A → IO ⊤) → IO Disposable.t
   on-message panel listener = Internal.on-message panel λ json → case decode json of λ where
     nothing → pure tt
     (just a) → listener a

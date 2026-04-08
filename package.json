@@ -10,24 +10,93 @@
   "categories": [
     "Other"
   ],
-	"activationEvents": [
+  "activationEvents": [
     "*"
-	],
+  ],
   "main": "./out/extension.js",
   "contributes": {
-		"languages": [
-			{
-				"id": "agda",
-				"extensions": [
-					".agda"
-				]
-			}
-		],
+    "languages": [
+      {
+        "id": "agda",
+        "extensions": [
+          ".agda"
+        ]
+      }
+    ],
     "keybindings": [
       {
         "command": "agda-mode.load-file",
         "when": "editorLangId =~ /agda/",
         "key": "ctrl+c ctrl+l"
+      },
+      {
+        "command": "agda-mode.goal-context",
+        "when": "editorLangId =~ /agda/",
+        "key": "ctrl+c ctrl+,"
+      },
+      {
+        "command": "agda-mode.goal-type",
+        "when": "editorLangId =~ /agda/",
+        "key": "ctrl+c ctrl+t"
+      },
+      {
+        "command": "agda-mode.goal-env",
+        "when": "editorLangId =~ /agda/",
+        "key": "ctrl+c ctrl+e"
+      },
+      {
+        "command": "agda-mode.goal-context-infer",
+        "when": "editorLangId =~ /agda/",
+        "key": "ctrl+c ctrl+."
+      },
+      {
+        "command": "agda-mode.goal-context-elab",
+        "when": "editorLangId =~ /agda/",
+        "key": "ctrl+c ctrl+;"
+      },
+      {
+        "command": "agda-mode.next-goal",
+        "when": "editorLangId =~ /agda/",
+        "key": "ctrl+c ctrl+f"
+      },
+      {
+        "command": "agda-mode.prev-goal",
+        "when": "editorLangId =~ /agda/",
+        "key": "ctrl+c ctrl+b"
+      },
+      {
+        "command": "agda-mode.show-metas",
+        "when": "editorLangId =~ /agda/",
+        "key": "ctrl+c ctrl+shift+/"
+      },
+      {
+        "command": "agda-mode.show-constraints",
+        "when": "editorLangId =~ /agda/",
+        "key": "ctrl+c ctrl+="
+      },
+      {
+        "command": "agda-mode.refine",
+        "when": "editorLangId =~ /agda/",
+        "key": "ctrl+c ctrl+r",
+        "args": { "pmLambda": false }
+      },
+      {
+        "command": "agda-mode.give-goal",
+        "when": "editorLangId =~ /agda/",
+        "key": "ctrl+c ctrl+r",
+        "args": { "pmLambda": false }
+      },
+      {
+        "command": "agda-mode.give-goal",
+        "when": "editorLangId =~ /agda/",
+        "key": "ctrl+u ctrl+c ctrl+r",
+        "args": { "pmLambda": true }
+      },
+      {
+        "command": "agda-mode.refine",
+        "when": "editorLangId =~ /agda/",
+        "key": "ctrl+u ctrl+c ctrl+r",
+        "args": { "pmLambda": true }
       },
       {
         "command": "agda-mode.backspace",
@@ -49,6 +118,34 @@
       {
         "command": "agda-mode.load-file",
         "title": "Load an agda file"
+      },
+      {
+        "command": "agda-mode.give-goal",
+        "title": "Give goal"
+      },
+      {
+        "command": "agda-mode.goal-context",
+        "title": "Goal context"
+      },
+      {
+        "command": "agda-mode.refine",
+        "title": "Refine goal"
+      },
+      {
+        "command": "agda-mode.next-goal",
+        "title": "Next goal"
+      },
+      {
+        "command": "agda-mode.prev-goal",
+        "title": "Previous goal"
+      },
+      {
+        "command": "agda-mode.show-constraints",
+        "title": "Show constraints"
+      },
+      {
+        "command": "agda-mode.show-metas",
+        "title": "Show all goals"
       }
     ]
   },
@@ -62,5 +159,8 @@
     "build:webview": "cd modules/agda-mode && agda --js --js-es6 --js-verify --compile-dir=../../out --library-file=../../libraries --no-default-libraries src/AgdaMode/Webview.agda",
     "build:extension": "cd modules/agda-mode && agda --js --js-es6 --js-verify --compile-dir=../../out --library-file=../../libraries --no-default-libraries src/AgdaMode/Extension.agda",
     "build": "npm run build:webview && npm run build:extension && cp modules/agda-mode/src/extension.js out"
+  },
+  "dependencies": {
+    "p-queue": "^9.1.1"
   }
 }

@@ -1,7 +1,11 @@
 module Data.Bool where
 
-open import Agda.Builtin.Bool renaming (Bool to 𝔹) public
+open import Agda.Builtin.Bool public
 open import Level
+
+𝔹 = Bool
+
+pattern otherwise = true
 
 private variable
   ℓ : Level
@@ -17,7 +21,7 @@ not : 𝔹 → 𝔹
 not true = false
 not false = true
 
-infixl 7 _∧_ _∨_
+infixl 3 _∧_ _∨_
 
 _∧_ : 𝔹 → 𝔹 → 𝔹
 false ∧ b = false

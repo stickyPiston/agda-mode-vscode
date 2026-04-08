@@ -32,6 +32,11 @@ module Process where
     -- TODO: Return Disposable
     postulate on-data : t → (Buffer.t → IO ⊤) → IO ⊤
     {-# COMPILE JS on-data = proc => handler => async () => {
-        proc.stdout.on("data", data => { handler(data)() });
-        return a => a["tt"]()
+        proc.stdout.on("data", data => handler(data)());
+        return a => a["tt"]();
+    } #-}
+
+    postulate disconnect : t → IO ⊤
+    {-# COMPILE JS disconnect = proc => async () => {
+        proc.disconnect(); return a => a["tt"]();
     } #-}

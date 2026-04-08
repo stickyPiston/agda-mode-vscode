@@ -32,6 +32,8 @@ record Monad (M : Set ℓ₁ → Set ℓ₂) : Set (lsuc (ℓ₁ ⊔ ℓ₂)) wh
   _<=<_ : (B → M C) → (A → M B) → A → M C
   _<=<_ = flip _>=>_
 
+  bind = _=<<_
+
 record MonadPlus (M : Set ℓ₁ → Set ℓ₂) : Set (lsuc (ℓ₁ ⊔ ℓ₂)) where
   field
     monad : Monad M

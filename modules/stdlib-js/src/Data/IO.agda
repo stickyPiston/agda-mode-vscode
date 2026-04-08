@@ -64,9 +64,9 @@ when : 𝔹 → IO ⊤ → IO ⊤
 when true a = a
 when false _ = pure tt
 
-unless : 𝔹 → IO ⊤ → IO ⊤
-unless false a = a
-unless true _ = pure tt
+unless_then_ : 𝔹 → IO ⊤ → IO ⊤
+unless_then_ false a = a
+unless_then_ true _ = pure tt
 
 module Ref where
   open import Function using (_∘_)

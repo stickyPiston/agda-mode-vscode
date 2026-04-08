@@ -2,9 +2,12 @@ module Data.Map where
 
 open import Data.String
 open import Data.Maybe
+open import Data.Maybe.Effectful
 open import Data.List using (List ; foldr)
 open import Data.Product
 open import Function
+
+open import Effect.Functor
 
 -- Gotta be careful w immutability here
 
@@ -37,8 +40,10 @@ o [ k ]:= v = StringMap.insert k v o
 _↦_ : ∀ {V} → String → V → StringMap.t V
 k ↦ v = StringMap.empty [ k ]:= v
 
-_[_]%=_ : ∀ {V} → StringMap.t V → String → (Maybe V → V) → StringMap.t V
-o [ k ]%= f = o [ k ]:= f (o !? k)
+open Functor ⦃ ... ⦄
+
+_[_]%=_ : ∀ {V} → StringMap.t V → String → (V → V) → StringMap.t V
+o [ k ]%= f = maybe o (o [ k ]:=_) $ f <$> o !? k
 
 infixl 15 _<>_
 _<>_ : ∀ {V} → StringMap.t V → StringMap.t V → StringMap.t V

@@ -153,6 +153,7 @@ module InputMode where
   update (_ , e) (just model) backspace = case navigate Zipper.go-up model of λ where
     (just m) → just m <$ do
       here ← TextEditor.cursor-pos e
+      pure tt
       TextEditor.edit [ Edit.delete (Range.new (Position.left 1 here) here) ] e
     nothing → pure nothing
   update _ (just model) left = pure $ navigate (just ∘ Zipper.go-left) model
@@ -201,7 +202,7 @@ module InputMode where
   view e d stb (just m) = do
     -- Underline what is typed so far
     range ← Range.new (m .start-pos) <$> TextEditor.cursor-pos e
-    TextEditor.set-decoration d range e
+    TextEditor.set-decoration d [ range ] e
 
     -- Enable `inInputMode` context, so that vscode sends backspace and arrow key events
     execute-command₂ "setContext" "agda-mode.inInputMode" true

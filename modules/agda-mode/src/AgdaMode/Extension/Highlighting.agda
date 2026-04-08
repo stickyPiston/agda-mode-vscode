@@ -9,10 +9,11 @@ import Data.IO as IO
 open IO using (IO)
 
 open import Data.Bool
-open import Data.List
+open import Data.List hiding (_++_)
 open import Data.Product
-open import Agda.Builtin.Nat renaming (_==_ to _==ⁿ_)
-open import Data.String
+open import Data.Nat renaming (_==_ to _==ⁿ_) hiding (show)
+import Data.Nat as Nat
+open import Data.String hiding (show)
 open import Data.Maybe using (Maybe ; just ; nothing)
 open import Agda.Builtin.Bool
 open import Function
@@ -59,28 +60,34 @@ definition-site-decoder : Decoder DefinitionSite
 definition-site-decoder = ⦇ mk-DefinitionSite (required "filepath" string) (required "position" nat) ⦈
   where open Applicative Decode.applicative
 
-record Token : Set where
-  constructor mk-Token
-  field
-    atoms : List Aspect
-    definition-site : Maybe DefinitionSite
-    note : String
-    start end : Nat
-    token-based : Bool
+module Token where
+  record t : Set where
+    constructor mk-Token
+    field
+      atoms : List Aspect
+      definition-site : Maybe DefinitionSite
+      note : String
+      start end : Nat
+      token-based : Bool
+  open t public
+  
+  show : t → String
+  show t = "mk-Token { start = " ++ Nat.show (t .start) ++ " ; end = " ++ Nat.show (t .end) ++ "}"
+open Token using (atoms ; definition-site ; note ; start ; end ; token-based ; mk-Token) public
 
-token-decoder : Decoder Token
+token-decoder : Decoder Token.t
 token-decoder = ⦇ mk-Token
     (required "atoms" (list aspect-decoder))
     (optional-null "definitionSite" definition-site-decoder)
     (required "note" string)
-    (required "range" (list nat |> index 0)) (required "range" (list nat |> index 1))
+    (required "range" (list nat |> index 0 |> fmap (_- 1))) (required "range" (list nat |> index 1 |> fmap (_- 1)))
     (required "tokenBased" string <&> ("TokenBased" ==_)) ⦈
   where open Applicative applicative
 
-highlighting-info-decoder : Decoder (List Token)
+highlighting-info-decoder : Decoder (List Token.t × Bool)
 highlighting-info-decoder =
   required "kind" string >>= λ where
-    "HighlightingInfo" → list token-decoder |> required "payload" |> required "info"
+    "HighlightingInfo" → (_,_ <$> required "payload" (list token-decoder) <*> required "remove" bool) |> required "info"
     _ → ⊘
   where open MonadPlus monad-plus
 
@@ -111,29 +118,29 @@ legend : Legend.t
 legend = record { TokenType = DefaultTokenType ; Modifier = DefaultModifier }
 
 divide-ranges : TextDocument.t → Range.t → List Range.t
-divide-ranges doc r = go (line (start r) - line (end r))
+divide-ranges doc r = go (line (Range.start r) - line (Range.end r))
   where
     open Position
     open Range
 
     single-line-range : Nat → Range.t
     single-line-range n =
-        let full-line-range = TextLine.range (TextDocument.line-at doc (line (start r) + n))
+        let full-line-range = TextLine.range (TextDocument.line-at doc (line (Range.start r) + n))
           in Range.new
-              (start (if n ==ⁿ zero then r else full-line-range))
-              (end (if n ==ⁿ line (end r) - line (start r) then r else full-line-range))
+              (Range.start (if n ==ⁿ zero then r else full-line-range))
+              (Range.end (if n ==ⁿ line (Range.end r) - line (Range.start r) then r else full-line-range))
 
     go : Nat → List Range.t
     go zero = [ single-line-range zero ]
     go (suc n) = single-line-range n ∷ go n
 
-make-highlighting-tokens : TextDocument.t → List Token → List SemanticToken.t
+make-highlighting-tokens : TextDocument.t → List Token.t → List SemanticToken.t
 make-highlighting-tokens doc = concat ∘ map to-semantic-token
   where
-    to-semantic-token : Token → (List SemanticToken.t)
-    to-semantic-token token = do
+    to-semantic-token : Token.t → (List SemanticToken.t)
+    to-semantic-token token =
       let open Token
-          original-range = Range.new (TextDocument.position-at doc (token .start - 1)) (TextDocument.position-at doc (token .end - 1))
+          original-range = Range.new (TextDocument.position-at doc (token .start)) (TextDocument.position-at doc (token .end))
           single-line-ranges = divide-ranges doc original-range
           token-type , mods = aspect→legend (token .atoms)
        in map (λ r → record { range = r ; token-type = token-type ; modifiers = mods }) single-line-ranges

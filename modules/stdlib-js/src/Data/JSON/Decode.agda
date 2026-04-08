@@ -11,7 +11,7 @@ open import Data.Maybe
 import Data.Maybe.Effectful as Maybe
 open import Agda.Builtin.String
 open import Agda.Builtin.Nat
-open import Data.List
+open import Data.List hiding (any)
 open Data.List.TraversableA
 open import Function
 open import Agda.Builtin.Unit

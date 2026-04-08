@@ -2,7 +2,7 @@ module Vscode.Window where
 
 open import Agda.Builtin.Unit
 open import Agda.Builtin.Nat
-open import Data.String
+open import Data.String hiding (show)
 open import Data.Maybe
 open import Data.Bool
 open import Data.List
@@ -15,7 +15,7 @@ open import Vscode.Common
 open import Vscode.SemanticTokensProvider
 open import Vscode.TextEditor
 
-postulate on-did-change-active-text-editor-listener : (Maybe TextEditor.t → IO ⊤) → IO Disposable
+postulate on-did-change-active-text-editor-listener : (Maybe TextEditor.t → IO ⊤) → IO Disposable.t
 {-# COMPILE JS on-did-change-active-text-editor-listener = update => async () =>
     AgdaModeImports.vscode.window.onDidChangeActiveTextEditor(editor =>
       update(editor ? (a => a["just"](editor)) : (a => a["nothing"]()))(() => {})) #-}
@@ -80,3 +80,9 @@ module Window where
   show-text-document : Uri.t → TextDocumentShowOptions.t → IO TextEditor.t
   show-text-document uri options =
     Internal.show-text-document uri options (ViewColumn.encode (options .view-column))
+
+  postulate show-input-box : IO (Maybe String)
+  {-# COMPILE JS show-input-box = async () => {
+    const answer = await AgdaModeImports.vscode.window.showInputBox();
+    return answer ? (a => a["just"](answer)) : (a => a["nothing"]());
+  } #-}

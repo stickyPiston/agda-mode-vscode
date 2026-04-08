@@ -1,7 +1,7 @@
 module Data.String where
 
 open import Agda.Builtin.String
-  using (String ; primShowNat)
+  using (String ; primShowString)
   renaming
     ( primStringEquality to _==_
     ) public
@@ -40,5 +40,10 @@ postulate _=~_ : String → String → 𝔹
 postulate split : String → List String
 {-# COMPILE JS split = s => s.split("") #-}
 
+postulate trim : String → String
+{-# COMPILE JS trim = s => s.trim() #-}
+
 join : List String → String
 join = intercalate ""
+
+show = primShowString

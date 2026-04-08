@@ -2,12 +2,22 @@ module Vscode.Common where
 
 open import Data.List
 open import Data.String
-open import Agda.Builtin.Nat
+open import Data.Nat
+open import Data.Product
+open import Data.Maybe
+open import Data.Bool
 open import Agda.Builtin.Unit
 
 open import Data.IO
 
-postulate Disposable : Set
+module Disposable where
+  postulate t : Set
+
+  postulate new : IO ⊤ → t
+  {-# COMPILE JS new = dispose => new AgdaModeImports.vscode.Disposable(dispose) #-}
+
+  postulate dispose : t → IO ⊤
+  {-# COMPILE JS dispose = disposable => disposable.dispose() #-}
 
 module Uri where
   postulate t : Set
@@ -32,8 +42,12 @@ module Position where
     left : Nat → t → t
     left n t = new (line t) (char t - n)
 
+    right : Nat → t → t
+    right n t = new (line t) (char t + n)
+
 module Range where
   open import Data.Bool
+  open import Function
 
   postulate t : Set
   -- Technically not pure, because === will still call two new objects different,
@@ -48,6 +62,12 @@ module Range where
   postulate _in-range_ : Position.t → t → 𝔹
   {-# COMPILE JS _in-range_ = pos => range => range.contains(pos) #-}
 
+  postulate _∩_ : t → t → Maybe t
+  {-# COMPILE JS _∩_ = a => b => {
+    const i = a.intersection(b);
+    return i ? (x => x["just"](i)) : (x => x["nothing"]());
+  } #-}
+
 module TextLine where
     postulate t : Set
 
@@ -60,11 +80,17 @@ module TextDocument where
     postulate uri : t → Uri.t
     {-# COMPILE JS uri = doc => doc.uri #-}
 
-    postulate get-text : t → String
-    {-# COMPILE JS get-text = doc => doc.getText() #-}
+    postulate get-text : Range.t → t → String
+    {-# COMPILE JS get-text = range => doc => doc.getText(range) #-}
+
+    postulate get-all-text : t → IO String
+    {-# COMPILE JS get-all-text = doc => async () => doc.getText() #-}
 
     postulate position-at : t → Nat → Position.t
     {-# COMPILE JS position-at = doc => n => doc.positionAt(Number(n)) #-}
+
+    postulate offset-at : t → Position.t → ℕ
+    {-# COMPILE JS offset-at = doc => pos => BigInt(doc.offsetAt(pos)) #-}
 
     postulate line-at : t → Nat → TextLine.t
     {-# COMPILE JS line-at = doc => n => doc.lineAt(Number(n)) #-}
@@ -74,6 +100,9 @@ module TextDocument where
 
     postulate open-path : String → IO t
     {-# COMPILE JS open-path = path => () => AgdaModeImports.vscode.workspace.openTextDocument(path) #-}
+
+    postulate save : t → IO Bool
+    {-# COMPILE JS save = doc => () => doc.save() #-}
 
 module ExtensionContext where
   postulate t : Set
@@ -132,9 +161,11 @@ module DefinitionProvider where
   private module Internal where
     open import Data.JSON
 
-    postulate register : JSON → t → IO Disposable
-    {-# COMPILE JS register = selector => provider => async () =>
-      AgdaModeImports.vscode.languages.registerDefinitionProvider(selector, provider) #-}
+    postulate register : JSON → t → IO Disposable.t
+    {-# COMPILE JS register = selector => provider => async () => {
+      const disposable = AgdaModeImports.vscode.languages.registerDefinitionProvider(selector, provider);
+      return { "_,_": y => y["_,_"](null, { "record": z => z["record"](disposable) }) };
+    } #-}
 
-  register : DocumentSelector.t → t → IO Disposable
+  register : DocumentSelector.t → t → IO Disposable.t
   register selector t = Internal.register (DocumentSelector.encode selector) t

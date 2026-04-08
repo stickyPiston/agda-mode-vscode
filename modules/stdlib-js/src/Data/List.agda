@@ -7,6 +7,7 @@ open import Function
 open import Data.Maybe
 open import Data.Product
 open import Data.Bool
+open import Data.Monoid
 
 private variable
   a b c : Level
@@ -36,6 +37,21 @@ null? : List A → 𝔹
 null? [] = true
 null? _ = false
 
+filter : (A → Bool) → List A → List A
+filter p [] = []
+filter p (x ∷ xs) = if p x then x ∷ filter p xs else filter p xs
+{-# COMPILE JS filter = a => A => p => xs => xs.filter(p) #-}
+
+partition : (A → Bool) → List A → List A × List A
+partition p xs = filter p xs , filter (not ∘ p) xs
+{-# COMPILE JS partition = a => A => p => xs => {
+  const t = [], f = [];
+  for (const x of xs) {
+    (p(x) ? t : f).push(x);
+  }
+  return { "_,_": y => y["_,_"](t, f) };
+} #-}
+
 infixl 10 _++_
 
 _++_ : List A → List A → List A
@@ -63,10 +79,13 @@ concat = foldr [] λ ac l → l ++ ac
 concat-for : List A → (A → List B) → List B
 concat-for = concat ∘₂ for
 
+concat-map : (A → List B) → List A → List B
+concat-map = flip concat-for
+
 reverse : List A → List A
 reverse [] = []
 reverse (x ∷ xs) = reverse xs ++ [ x ]
-{-# COMPILE JS reverse = a => A => as => as.reverse() #-}
+{-# COMPILE JS reverse = a => A => as => as.toReversed() #-}
 
 take : ℕ → List A → List A
 take zero xs = []
@@ -77,6 +96,14 @@ take (suc n) (x ∷ xs) = x ∷ take n xs
 -- TODO: This function is a little dubious, probably needs to be fixed
 postulate sort : List A → List A
 {-# COMPILE JS sort = _ => _ => xs => xs.toSorted() #-}
+
+postulate sort-on : (A → B) → List A → List A
+{-# COMPILE JS sort-on = a => A => b => B => f => as =>
+  as.toSorted((x, y) => f(x) - f(y)) #-}
+
+snoc : A → List A → List A
+snoc x xs = xs ++ [ x ]
+{-# COMPILE JS snoc = a => A => x => xs => [...xs, x] #-}
 
 unsnoc : List A → Maybe (List A × A)
 unsnoc [] = nothing
@@ -128,6 +155,47 @@ _to_ : ℕ → ℕ → List ℕ
 n to k = if k ≤ n then [] else n ∷ (suc n to k)
 {-# COMPILE JS _to_ = n => k => Array(Math.max(0, Number(k - n))).fill(null).map((_, i) => BigInt(i) + n) #-}
 
+any : (A → 𝔹) → List A → 𝔹
+any p = foldr false λ b a → b ∨ p a
+
+insert-after : ℕ → A → List A → List A
+insert-after i e l = slice l 0 i ++ [ e ] ++ slice l (i + 1) ∥ l ∥
+
+update-at : ℕ → A → List A → List A
+update-at i e l = slice l 0 (i - 1) ++ [ e ] ++ slice l (i + 1) ∥ l ∥
+
+Maybe-to-List : Maybe A → List A
+Maybe-to-List nothing = []
+Maybe-to-List (just x) = [ x ]
+
+map-Maybe : (A → Maybe B) → List A → List B
+map-Maybe f = concat-map λ a → Maybe-to-List (f a)
+
+record List⁺ (A : Set a) : Set (lsuc a) where
+  constructor _|:_
+  field
+    head : A
+    tail : List A
+open List⁺ public
+
+module _ where
+  open Semigroup {{ ... }}
+
+  mconcat⁺ : {{ s : Semigroup A }} → List⁺ A → A
+  mconcat⁺ (head |: tail) = foldr head _<>_ tail
+
+module _ where
+  open Monoid {{ ... }}
+
+  mconcat : {{ m : Monoid A }} → List A → A
+  mconcat {{ m }} as = foldr empty _<>_ as
+
+instance
+  List-Semigroup : Semigroup (List A)
+  List-Semigroup = record { _<>_ = _++_ }
+
+  List-Monoid : Monoid (List A)
+  List-Monoid = record { semigroup = List-Semigroup ; empty = [] }
 
 open import Effect.Applicative
 
@@ -152,9 +220,9 @@ module TraversableM (monad : Monad M) where
   forM = flip mapM
 
   -- TODO: Make this stack-safe
-  foldM : ⦃ m : Monad M ⦄ → B → List A → (A → B → M B) → M B
-  foldM b [] f = pure b
-  foldM b (x ∷ xs) f = f x b >>= λ b' → foldM b' xs f
+  foldM : ⦃ m : Monad M ⦄ → B → (A → B → M B) → List A → M B
+  foldM b f [] = pure b
+  foldM b f (x ∷ xs) = f x b >>= λ b' → foldM b' f xs
 
 private module Tests where
   open import Agda.Builtin.Equality
