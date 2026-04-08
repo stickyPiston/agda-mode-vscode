@@ -6,6 +6,7 @@ open import Data.List
 open import Data.Bool
 open import Data.Maybe
 open import Data.Nat
+open import Data.JSON
 open import Function
 
 open import Agda.Builtin.Nat
@@ -141,4 +142,9 @@ module Workspace where
   {-# COMPILE JS on-did-change-text-document = handler => async () => {
     AgdaModeImports.vscode.workspace.onDidChangeTextDocument(e => handler(e)());
     return a => a["tt"]();
+  } #-}
+
+  postulate get-configuration : String → IO JSON
+  {-# COMPILE JS get-configuration = name => async () => {
+    return AgdaModeImports.vscode.workspace.getConfiguration(name);
   } #-}

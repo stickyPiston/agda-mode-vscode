@@ -4,6 +4,7 @@ open import Agda.Builtin.Unit
 
 open import Data.Maybe
 open import Data.String hiding (show)
+import Data.String as String
 open import Data.Map
 open import Data.List hiding (_++_)
 open import Data.Product
@@ -12,6 +13,7 @@ import Data.Nat as Nat
 open import Data.Bool
 open import Function hiding (id)
 open import Data.IO
+open import Data.JSON.Decode
 open import Effect.Monad
 open Monad {{ ... }}
 
@@ -184,3 +186,26 @@ module AgdaInteraction where
      ips |> find (λ ip → OffsetRange.contains? (ip .range) cursor) |> maybe (pure nothing) λ ip → do
       pure $ just (iotcm doc (cmd ip))
 open AgdaInteraction using (iotcm ; file ; command) public
+
+module Config where
+  record t : Set where
+    constructor mkConfig
+    field
+      agda-path : Maybe String
+      extra-args : String
+  open t public
+
+  decoder : Decoder t
+  decoder = do
+    path ← required "agda-path" string <&> λ s → if s String.== "" then nothing else just s
+    mkConfig path <$> required "extra-args" string
+
+  postulate invalid : {A : Set} → IO A
+  {-# COMPILE JS invalid = A => async () => { throw "call to invalid" } #-}
+
+  load : IO t
+  load = do
+    just config ← decoder <$> Workspace.get-configuration "agda-mode"
+      where _ → invalid -- TODO: Show an error to the user
+    pure config
+open Config using (agda-path ; extra-args) public

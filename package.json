@@ -15,6 +15,20 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "configuration": {
+      "title": "",
+      "type": "object",
+      "properties": {
+        "agda-mode.agda-path": {
+          "type": "string",
+          "description": "Path to the agda binary, when left empty, the agda binary on the PATH is used."
+        },
+        "agda-mode.extra-args": {
+          "type": "string",
+          "description": "Extra arguments passed to the Agda process."
+        }
+      }
+    },
     "languages": [
       {
         "id": "agda",

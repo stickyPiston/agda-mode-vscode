@@ -5,6 +5,7 @@ open import Agda.Builtin.Unit
 open import Data.Maybe
 import Data.Maybe.Effectful
 open import Data.String hiding (_==_)
+import Data.String as String
 open import Data.Product
 open import Data.Bool
 open import Data.List

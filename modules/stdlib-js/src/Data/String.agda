@@ -37,8 +37,8 @@ postulate intercalate : String → List String → String
 postulate _=~_ : String → String → 𝔹
 {-# COMPILE JS _=~_ = s => r => new RegExp(r).test(s) #-}
 
-postulate split : String → List String
-{-# COMPILE JS split = s => s.split("") #-}
+postulate split : String → String → List String
+{-# COMPILE JS split = s => b => s.split(b) #-}
 
 postulate trim : String → String
 {-# COMPILE JS trim = s => s.trim() #-}

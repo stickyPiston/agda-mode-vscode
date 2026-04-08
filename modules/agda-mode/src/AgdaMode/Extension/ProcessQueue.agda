@@ -2,7 +2,7 @@ module AgdaMode.Extension.ProcessQueue where
 
 open import Data.Bool
 import Data.List as List
-open List using ([_])
+open List using ([_] ; _∷_ ; [] ; filter)
 open import Data.IO
 open import Data.Maybe
 open import Data.Maybe.Effectful
@@ -153,7 +153,11 @@ module AgdaProcess where
   -- When messages arrive on the output channel, they will be handled via a `JobQueue.t`.
   spawn : Ref.t Model → IO (t × Disposable.t)
   spawn model-ref = do
-    proc ← Process.spawn "agda" [ "--interaction-json" ]
+    config ← Config.load
+    let args = filter (λ s → ∥ s ∥ > 0) (split (config .extra-args) " ")
+    proc ← Process.spawn
+      (config .agda-path or-else "agda")
+      ("--interaction-json" ∷ args)
     res-queue ← JobQueue.new 
 
     -- Whenever a buffer of data is received, we append to it to previously read and unparsed data.

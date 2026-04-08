@@ -68,5 +68,5 @@ module Change where
 
   from-TextDocumentContentChangeEvent : TextDocumentContentChangeEvent.t → t
   from-TextDocumentContentChangeEvent change =
-    replace offset-range (change .range-offset) (change .range-length) with-length ∥ split (change .text) ∥
+    replace offset-range (change .range-offset) (change .range-length) with-length ∥ split (change .text) "" ∥
 open Change using (replace_with-length_ ; range ; by) public
