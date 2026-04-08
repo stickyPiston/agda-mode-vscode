@@ -108,10 +108,13 @@ module ExtensionContext where
   postulate t : Set
 
   postulate get : IO t
-  {-# COMPILE JS get = async () => context #-}
+  {-# COMPILE JS get = async () => AgdaModeImports.context #-}
 
   postulate extension-uri : t → Uri.t
   {-# COMPILE JS extension-uri = ctx => ctx.extensionUri #-}
+
+  postulate extension-path : t → String
+  {-# COMPILE JS extension-path = ctx => ctx.extensionPath #-}
 
 module DocumentSelector where
   open import Data.JSON hiding (encode)

@@ -18,6 +18,7 @@ open IO using (IO)
 open import Data.JSON
 open import Data.JSON.Decode
 open import Data.Map
+open import Node.FileSystem
 
 open import AgdaMode.Extension.Highlighting
 open import AgdaMode.Extension.Keymap
@@ -188,8 +189,9 @@ jump-to-goal model find-next = model |> with-current-file λ ed doc file → do
 
 activate : IO ⊤
 activate = do
-  just init-keymap ← load-keymap "/Users/terra/Desktop/code/agda-mode-agda/modules/agda-mode/src/keymap.json"
-    where _ → pure tt
+  extension-context ← ExtensionContext.get
+  let keymap-path = Path.join (ExtensionContext.extension-path extension-context ∷ "keymap.json" ∷ [])
+  just init-keymap ← load-keymap keymap-path where _ → pure tt
   model-ref ← init init-keymap >>= IO.Ref.new 
   agda , disposable ← AgdaProcess.spawn model-ref
 

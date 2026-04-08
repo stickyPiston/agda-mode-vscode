@@ -2,6 +2,7 @@ import Main from "./jAgda.AgdaMode.Extension.mjs";
 import * as vscode from "vscode";
 import * as process from "node:child_process";
 import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import PQueue from "p-queue";
 
 export function activate(context) {
@@ -10,7 +11,7 @@ export function activate(context) {
     // generic names to globalThis has the tendency to break other things in
     // unexpected and unsolvable ways.
     Object.defineProperty(globalThis, "AgdaModeImports", {
-        value: { vscode, process, context, fs, PQueue }
+        value: { vscode, process, context, fs, PQueue, path }
     });
     Main.activate(_ => {});
 }
