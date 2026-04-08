@@ -4,8 +4,9 @@ open import Data.Nat hiding (show)
 import Data.Nat as Nat
 open import Data.Int
 open import Data.Bool
-open import Data.String hiding (∥_∥ ; show)
+open import Data.String hiding (∥_∥ ; show ; _==_)
 open import Data.List hiding (_++_)
+open import Function
 
 open import Vscode.TextEditor
 
@@ -54,9 +55,14 @@ module Change where
   show (replace range with-length by) = "replace " ++ OffsetRange.show range ++ " with-length " ++ Nat.show by
 
   influences? : OffsetRange.t → t → Bool
-  influences? r₁ (replace r₂ with-length _) =
-      (OffsetRange.start r₁ < OffsetRange.start r₂ ∧ OffsetRange.start r₂ ≤ OffsetRange.end r₁)
-    ∨ (OffsetRange.start r₁ < OffsetRange.end r₂ ∧ OffsetRange.end r₂ ≤ OffsetRange.end r₁)
+  influences? r₁ (replace r₂ with-length _) = r₂ .length |> λ where
+    -- Insertions are allowed right up to the range
+    0 → (OffsetRange.start r₁ < OffsetRange.start r₂ ∧ OffsetRange.start r₂ ≤ OffsetRange.end r₁)
+      ∨ (OffsetRange.start r₁ < OffsetRange.end r₂ ∧ OffsetRange.end r₂ ≤ OffsetRange.end r₁)
+
+    -- If we're dealing with a replacement, then replacing the first character will also influence the range
+    _ → (OffsetRange.start r₁ ≤ OffsetRange.start r₂ ∧ OffsetRange.start r₂ ≤ OffsetRange.end r₁)
+      ∨ (OffsetRange.start r₁ ≤ OffsetRange.end r₂ ∧ OffsetRange.end r₂ ≤ OffsetRange.end r₁)
 
   open TextDocumentContentChangeEvent hiding (t)
 

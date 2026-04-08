@@ -39,6 +39,10 @@ module InteractionPoint where
   content-range : t → OffsetRange.t
   content-range (mkInteractionPoint _ range) = offset-range (range .start + 2) (range .length - 4)
 
+  show : t → String
+  show (mkInteractionPoint id range) =
+    "mkInteractionPoint " ++ Nat.show id ++ " " ++ "(" ++ OffsetRange.show range ++ ")"
+
 open InteractionPoint using (mkInteractionPoint ; id ; range) public
 
 record File : Set where

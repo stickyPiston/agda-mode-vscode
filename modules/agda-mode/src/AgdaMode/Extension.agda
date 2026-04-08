@@ -133,13 +133,13 @@ handle-tokens-change tokens change = tokens |> map-Maybe λ token →
   |> fmap (set-token-range token)
 
 handle-ips-change : List InteractionPoint.t → Change.t → List InteractionPoint.t
-handle-ips-change ips change = ips |> map-Maybe λ ip@(mkInteractionPoint id ip-range) → do
+handle-ips-change ips change = ips |> map-Maybe λ ip@(mkInteractionPoint id ip-range) →
   if (change .range .start == ip-range .start) ∧ (change .range .start + change .by - 1 == OffsetRange.end ip-range)
     then pure ip
-    else (do
+    else do
       start-marker ← offset-range (ip-range .start) 2 |> handle-offset-change change
       end-marker ← offset-range (OffsetRange.end ip-range - 1) 2 |> handle-offset-change change
-      pure $ mkInteractionPoint id (offset-range (start-marker .start) (end-marker .start + 2 - start-marker .start)))
+      pure $ mkInteractionPoint id (offset-range (start-marker .start) (end-marker .start + 2 - start-marker .start))
 
 update-input-mode : Trie.t → DecorationType.t → StatusBarItem.t → IO.Ref.t InputMode.Model → InputMode.Msg → IO ⊤
 update-input-mode t d stb input-mode-model msg = TextEditor.active-editor >>= λ where
