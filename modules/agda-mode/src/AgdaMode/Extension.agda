@@ -188,7 +188,7 @@ jump-to-goal model find-next = model |> with-current-file λ ed doc file → do
   find-next o (file .interaction-points) |> maybe (pure file) λ ip → file <$ jump-to-position doc (ip .range .start + 3)
 
 activate : IO ⊤
-activate = do
+activate = try λ _ → do
   extension-context ← ExtensionContext.get
   let keymap-path = Path.join (ExtensionContext.extension-path extension-context ∷ "keymap.json" ∷ [])
   just init-keymap ← load-keymap keymap-path where _ → pure tt
@@ -296,5 +296,7 @@ activate = do
   register-command "agda-mode.arrow-right" $ uim InputMode.right
   register-command-with-args "type" λ args →
     required "text" (InputMode.character <$> string) args |> maybe (pure tt) uim
+
+  trace "Started extension"
 
   pure tt

@@ -3,17 +3,17 @@
   "displayName": "agda-mode",
   "description": "",
   "version": "0.0.1",
-  "type": "module",
   "engines": {
-    "vscode": "^1.106.0"
+    "vscode": "^1.85.0"
   },
   "categories": [
-    "Other"
+    "Programming Languages"
   ],
   "activationEvents": [
-    "*"
+    "onLanguage:agda"
   ],
-  "main": "./out/extension.js",
+  "repository": "github:stickyPiston/agda-mode-vscode",
+  "main": "./bundle.js",
   "contributes": {
     "configuration": {
       "title": "",
@@ -91,26 +91,34 @@
       {
         "command": "agda-mode.refine",
         "when": "editorLangId =~ /agda/",
-        "key": "ctrl+c ctrl+r",
-        "args": { "pmLambda": false }
-      },
-      {
-        "command": "agda-mode.give-goal",
-        "when": "editorLangId =~ /agda/",
-        "key": "ctrl+c ctrl+r",
-        "args": { "pmLambda": false }
-      },
-      {
-        "command": "agda-mode.give-goal",
-        "when": "editorLangId =~ /agda/",
         "key": "ctrl+u ctrl+c ctrl+r",
-        "args": { "pmLambda": true }
+        "args": {
+          "pmLambda": true
+        }
       },
       {
         "command": "agda-mode.refine",
         "when": "editorLangId =~ /agda/",
-        "key": "ctrl+u ctrl+c ctrl+r",
-        "args": { "pmLambda": true }
+        "key": "ctrl+c ctrl+r",
+        "args": {
+          "pmLambda": false
+        }
+      },
+      {
+        "command": "agda-mode.give-goal",
+        "when": "editorLangId =~ /agda/",
+        "key": "ctrl+c ctrl+spc",
+        "args": {
+          "pmLambda": false
+        }
+      },
+      {
+        "command": "agda-mode.give-goal",
+        "when": "editorLangId =~ /agda/",
+        "key": "ctrl+u ctrl+c ctrl+spc",
+        "args": {
+          "pmLambda": true
+        }
       },
       {
         "command": "agda-mode.backspace",
@@ -134,6 +142,10 @@
       {
         "command": "agda-mode.compile-file",
         "key": "ctrl+c ctrl+x ctrl+c"
+      },
+      {
+        "command": "agda-mode.make-case",
+        "key": "ctrl+c ctrl+c"
       }
     ],
     "commands": [
@@ -196,5 +208,9 @@
   },
   "dependencies": {
     "p-queue": "^9.1.1"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.7.1",
+    "esbuild": "^0.28.0"
   }
 }
