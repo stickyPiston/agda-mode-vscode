@@ -205,7 +205,7 @@
     "vscode:prepublish": "npm run build",
     "build:webview": "cd modules/agda-mode && agda --js --js-es6 --js-verify --compile-dir=../../out --library-file=../../libraries --no-default-libraries src/AgdaMode/Webview.agda",
     "build:extension": "cd modules/agda-mode && agda --js --js-es6 --js-verify --compile-dir=../../out --library-file=../../libraries --no-default-libraries src/AgdaMode/Extension.agda",
-    "build": "npm run build:webview && npm run build:extension && cp modules/agda-mode/src/extension.js out"
+    "build": "npm run build:webview && npm run build:extension && cp modules/agda-mode/src/extension.js out && node esbuild.mjs"
   },
   "dependencies": {
     "p-queue": "^9.1.1"

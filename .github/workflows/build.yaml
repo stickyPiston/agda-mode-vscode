@@ -1,0 +1,47 @@
+name: Build and package extension
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      # Install build tools
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '25' # Older could probably work, but this version is at least tested
+
+      # The extension doesn't run with Agda 2.8.0 yet, but building with this version is fine
+      - name: Install Agda 2.8.0 via the Github release
+        run: |
+          curl -L -o agda.tar.xz https://github.com/agda/agda/releases/download/v2.8.0/Agda-v2.8.0-linux.tar.xz
+          tar -xf agda.tar.xz
+          echo "${{ github.workspace }}" >> $GITHUB_PATH
+
+      # Check whether Agda has been successfully installed in a separate step,
+      # so that github can apply the changes to the PATH
+      - name: Verify Agda installation
+        run: agda --version
+
+      # Build and package extension
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Package extension
+        run: npx vsce package
+
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: vscode-extension
+          path: "*.vsix"

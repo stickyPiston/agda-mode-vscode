@@ -10,3 +10,8 @@ thesis
 .gitignore
 libraries
 package-lock.json
+agda
+*.tar.xz
+extension
+.github
+esbuild.mjs
