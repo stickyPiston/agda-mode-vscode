@@ -150,6 +150,9 @@ module AgdaProcess where
         new-model ← handle-agda-message (λ intr → Process.write proc (AgdaInteraction.show intr)) model parsed-response or-else pure model
         Ref.set model-ref new-model
 
+  stop : t → IO ⊤
+  stop t = Process.kill (t .process)
+
   -- Spawn a new `AgdaProcess.t` and immediately bind to the output on the stdout channel, which
   -- When messages arrive on the output channel, they will be handled via a `JobQueue.t`.
   spawn : OutputChannel.t → Ref.t Model → IO (t × Disposable.t)
@@ -178,5 +181,5 @@ module AgdaProcess where
     -- The disposable for an `AgdaProcess.t` calls `Process.disconnect`, which allows the child process to
     -- exit once there are no more references to it. It will also cancel the on-data event listener created
     -- earlier.
-    pure $ record { process = proc ; response-queue = res-queue } , Disposable.new (Process.disconnect proc)
+    pure $ record { process = proc ; response-queue = res-queue } , Disposable.new (Process.kill proc)
 open AgdaProcess using (response-queue ; process) public

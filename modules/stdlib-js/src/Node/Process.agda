@@ -36,7 +36,7 @@ module Process where
         return a => a["tt"]();
     } #-}
 
-    postulate disconnect : t → IO ⊤
-    {-# COMPILE JS disconnect = proc => async () => {
-        proc.disconnect(); return a => a["tt"]();
+    postulate kill : t → IO ⊤
+    {-# COMPILE JS kill = proc => async () => {
+      proc.kill(); return a => a["tt"]();
     } #-}

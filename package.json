@@ -147,6 +147,10 @@
       {
         "command": "agda-mode.make-case",
         "key": "ctrl+c ctrl+c"
+      },
+      {
+        "command": "agda-mode.restart",
+        "key": "ctrl+c ctrl+x ctrl+r"
       }
     ],
     "commands": [
@@ -193,6 +197,10 @@
       {
         "command": "agda-mode.compile-file",
         "title": "Compile file"
+      },
+      {
+        "command": "agda-mode.restart",
+        "title": "Restart the agda process"
       }
     ]
   },
