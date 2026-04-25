@@ -1,4 +1,5 @@
 import * as esbuild from "esbuild";
+import { env } from "node:process";
 
 await esbuild.build({
   entryPoints: ["out/extension.js"],
@@ -7,5 +8,5 @@ await esbuild.build({
   external: ["vscode"],
   format: "cjs",
   bundle: true,
-  minify: true
+  minify: env["DEV"] !== "TRUE"
 })

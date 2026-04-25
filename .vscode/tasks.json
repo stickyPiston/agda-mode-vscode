@@ -6,6 +6,11 @@
 		{
 			"type": "npm",
 			"script": "build",
+			"options": {
+				"env": {
+					"DEV": "TRUE"
+				}
+			},
 			"presentation": {
 				"reveal": "never"
 			},
