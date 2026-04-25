@@ -34,6 +34,7 @@ open import Vscode.Panel as VSC
 open import Vscode.SemanticTokensProvider as VSC
 open import Vscode.Window as VSC
 open import Vscode.TextEditor as VSC
+open import Vscode.Logging
 
 postulate trace : {A : Set} → A → IO ⊤
 {-# COMPILE JS trace = A => a => async () => { console.log(a); return b => b["tt"]() } #-}
@@ -193,7 +194,8 @@ activate = try λ _ → do
   let keymap-path = Path.join (ExtensionContext.extension-path extension-context ∷ "keymap.json" ∷ [])
   just init-keymap ← load-keymap keymap-path where _ → pure tt
   model-ref ← init init-keymap >>= IO.Ref.new 
-  agda , disposable ← AgdaProcess.spawn model-ref
+  output-chan ← OutputChannel.create "Agda Mode"
+  agda , disposable ← AgdaProcess.spawn output-chan model-ref
 
   -- TODO: Register command handlers
   -- TODO: Register disposables

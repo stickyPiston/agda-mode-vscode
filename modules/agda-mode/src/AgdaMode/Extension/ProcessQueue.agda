@@ -17,6 +17,7 @@ open import AgdaMode.Extension.Display
 
 open import Vscode.SemanticTokensProvider
 open import Vscode.Common
+open import Vscode.Logging
 
 open import Node.Process
 
@@ -151,13 +152,16 @@ module AgdaProcess where
 
   -- Spawn a new `AgdaProcess.t` and immediately bind to the output on the stdout channel, which
   -- When messages arrive on the output channel, they will be handled via a `JobQueue.t`.
-  spawn : Ref.t Model → IO (t × Disposable.t)
-  spawn model-ref = do
+  spawn : OutputChannel.t → Ref.t Model → IO (t × Disposable.t)
+  spawn output-chan model-ref = do
+    -- We reload the config every time spawn is called, so that when the user issues a reload agda command,
+    -- the possibly updated configuration from the vscode settings is also applied.
     config ← Config.load
-    let args = filter (λ s → ∥ s ∥ > 0) (split (config .extra-args) " ")
-    proc ← Process.spawn
-      (config .agda-path or-else "agda")
-      ("--interaction-json" ∷ args)
+    let args = "--interaction-json" ∷ filter (λ s → ∥ s ∥ > 0) (split (config .extra-args) " ")
+    let cmd-name = config .agda-path or-else "agda"
+    OutputChannel.trace ("Spawning process: " ++ cmd-name ++ " " ++ intercalate " " args) output-chan
+
+    proc ← Process.spawn cmd-name args
     res-queue ← JobQueue.new 
 
     -- Whenever a buffer of data is received, we append to it to previously read and unparsed data.

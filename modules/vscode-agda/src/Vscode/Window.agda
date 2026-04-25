@@ -91,3 +91,13 @@ module Window where
   {-# COMPILE JS quick-pick = options => async () => {
     return await AgdaModeImports.vscode.window.showQuickPick(options);
   } #-}
+
+  postulate show-information-message show-error-message : {A : Set} → String → List A → IO (Maybe A)
+  {-# COMPILE JS show-information-message = _ => msg => items => async () => {
+    const answer = await AgdaModeImports.vscode.window.showInformationMessage(msg, items);
+    return answer ? (a => a["just"](answer)) : (a => a["nothing"]());
+  } #-}
+  {-# COMPILE JS show-error-message = msg => items => async () => {
+    const answer = await AgdaModeImports.vscode.window.showErrorMessage(msg, items);
+    return answer ? (a => a["just"](answer)) : (a => a["nothing"]());
+  } #-}
