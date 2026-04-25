@@ -52,7 +52,8 @@ trie-decoder =
    in ⦇ trie values-decoder subtrees-decoder ⦈
 
 load-keymap : String → IO (Maybe Trie.t)
-load-keymap = fmap (parse-json >=> trie-decoder) ∘ load-file
+load-keymap path = load-file path |> fmap λ content →
+  content >>= parse-json >>= trie-decoder
 
 -- Θ(min(|xs|, depth(t)))
 match : List String → Trie.t → Maybe Trie.t

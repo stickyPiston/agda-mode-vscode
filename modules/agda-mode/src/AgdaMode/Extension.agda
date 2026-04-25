@@ -190,11 +190,15 @@ jump-to-goal model find-next = model |> with-current-file λ ed doc file → do
 
 activate : IO ⊤
 activate = try λ _ → do
+  output-chan ← OutputChannel.create "Agda Mode"
+
   extension-context ← ExtensionContext.get
   let keymap-path = Path.join (ExtensionContext.extension-path extension-context ∷ "keymap.json" ∷ [])
-  just init-keymap ← load-keymap keymap-path where _ → pure tt
+  just init-keymap ← load-keymap keymap-path where _ → do
+    Window.show-error-message {⊤} "Failed to read the keymap for the input mode. This is an internal error, please report this." []
+    OutputChannel.error ("Failed to read the keymap at the following path: " String.++ keymap-path) output-chan
+
   model-ref ← init init-keymap >>= IO.Ref.new 
-  output-chan ← OutputChannel.create "Agda Mode"
   agda-ref ← do
     agda , disposable ← AgdaProcess.spawn output-chan model-ref
     IO.Ref.new agda

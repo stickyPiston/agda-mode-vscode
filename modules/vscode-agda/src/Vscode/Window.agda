@@ -97,7 +97,7 @@ module Window where
     const answer = await AgdaModeImports.vscode.window.showInformationMessage(msg, items);
     return answer ? (a => a["just"](answer)) : (a => a["nothing"]());
   } #-}
-  {-# COMPILE JS show-error-message = msg => items => async () => {
+  {-# COMPILE JS show-error-message = _ => msg => items => async () => {
     const answer = await AgdaModeImports.vscode.window.showErrorMessage(msg, items);
     return answer ? (a => a["just"](answer)) : (a => a["nothing"]());
   } #-}
