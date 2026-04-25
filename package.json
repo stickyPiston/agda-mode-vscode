@@ -22,7 +22,7 @@
       "properties": {
         "agda-mode.agda-path": {
           "type": "string",
-          "description": "Path to the agda binary, when left empty, the agda binary on the PATH is used."
+          "description": "Path to the agda binary, when left empty, the agda binary on the PATH is used. If you change this setting, you can restart the agda process used by the extension with the restart command (C-c C-x C-r)."
         },
         "agda-mode.extra-args": {
           "type": "string",
