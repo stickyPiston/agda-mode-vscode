@@ -105,10 +105,6 @@ module Goal where
     in intercalate " " $
         "Cmd_give" ∷ "WithoutForce" ∷ parens interaction-id ∷ range ∷ String.show s ∷ []
 
-  execute-give : Process.t → String → InteractionPoint.t → String → IO ⊤
-  execute-give agda path goal s = Process.write agda $
-    "IOTCM \"" ++ path ++ "\" NonInteractive Direct " ++ parens (give-command goal s) ++ "\n"
-
 -- Diffs --
 
 -- private module Diff where

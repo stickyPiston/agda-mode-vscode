@@ -92,12 +92,12 @@ module Window where
     return await AgdaModeImports.vscode.window.showQuickPick(options);
   } #-}
 
-  postulate show-information-message show-error-message : {A : Set} → String → List A → IO (Maybe A)
-  {-# COMPILE JS show-information-message = _ => msg => items => async () => {
-    const answer = await AgdaModeImports.vscode.window.showInformationMessage(msg, items);
-    return answer ? (a => a["just"](answer)) : (a => a["nothing"]());
+  postulate show-information-message show-error-message : String → List String → IO (Maybe String)
+  {-# COMPILE JS show-information-message = msg => items => async () => {
+    const answer = await AgdaModeImports.vscode.window.showInformationMessage(msg, ...items.map(i => ({ title: i })));
+    return answer ? (a => a["just"](answer.title)) : (a => a["nothing"]());
   } #-}
-  {-# COMPILE JS show-error-message = _ => msg => items => async () => {
-    const answer = await AgdaModeImports.vscode.window.showErrorMessage(msg, items);
-    return answer ? (a => a["just"](answer)) : (a => a["nothing"]());
+  {-# COMPILE JS show-error-message = msg => items => async () => {
+    const answer = await AgdaModeImports.vscode.window.showErrorMessage(msg, ...items.map(i => ({ title: i })));
+    return answer ? (a => a["just"](answer.title)) : (a => a["nothing"]());
   } #-}

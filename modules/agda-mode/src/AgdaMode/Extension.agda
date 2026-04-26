@@ -195,42 +195,37 @@ activate = try λ _ → do
   extension-context ← ExtensionContext.get
   let keymap-path = Path.join (ExtensionContext.extension-path extension-context ∷ "keymap.json" ∷ [])
   just init-keymap ← load-keymap keymap-path where _ → do
-    Window.show-error-message {⊤} "Failed to read the keymap for the input mode. This is an internal error, please report this." []
+    Window.show-error-message "Failed to read the keymap for the input mode. This is an internal error, please report this." []
     OutputChannel.error ("Failed to read the keymap at the following path: " String.++ keymap-path) output-chan
 
   model-ref ← init init-keymap >>= IO.Ref.new 
-  agda-ref ← do
-    agda , disposable ← AgdaProcess.spawn output-chan model-ref
-    IO.Ref.new agda
+  agda , disposable ← AgdaProcess.spawn output-chan model-ref
 
-  register-command "agda-mode.restart" $ do
-    IO.Ref.get agda-ref >>= AgdaProcess.stop
-    agda , disposable ← AgdaProcess.spawn output-chan model-ref
-    IO.Ref.set agda-ref agda
+  register-command "agda-mode.restart" $ AgdaProcess.restart output-chan model-ref agda
 
   -- TODO: Register command handlers
   -- TODO: Register disposables
   register-command "agda-mode.load-file" $ do
     just intr ← AgdaInteraction.from-AgdaCommand AgdaCommand.load where _ → pure tt
     TextDocument.save (intr .file)
-    IO.Ref.get agda-ref >>= AgdaProcess.send-command intr
+    AgdaProcess.send-command intr agda
 
   forM (StringMap.entries goal-context-cmds) λ (name , cmd) →
     register-command name $ do
       model ← IO.Ref.get model-ref
       just intr ← AgdaInteraction.under-cursor-command model (cmd as-is) where _ → pure tt
-      IO.Ref.get agda-ref >>= AgdaProcess.send-command intr
+      AgdaProcess.send-command intr agda
 
   forM (StringMap.entries goal-give-cmds) λ (name , cmd) →
     register-command-with-args name λ o → do
       model ← IO.Ref.get model-ref
       just intr ← AgdaInteraction.under-cursor-command model (cmd (get-pmLambda o)) where _ → pure tt
-      IO.Ref.get agda-ref >>= AgdaProcess.send-command intr
+      AgdaProcess.send-command intr agda
 
   register-command "agda-mode.make-case" $ do
     model ← IO.Ref.get model-ref
     just intr ← AgdaInteraction.under-cursor-command model AgdaCommand.make-case where _ → pure tt
-    IO.Ref.get agda-ref >>= AgdaProcess.send-command intr
+    AgdaProcess.send-command intr agda
 
   register-command "agda-mode.next-goal" $ do
     model ← IO.Ref.get model-ref
@@ -243,17 +238,17 @@ activate = try λ _ → do
   forM (StringMap.entries show-general-info-cmds) λ (name , cmd) →
     register-command name $ do
       just intr ← AgdaInteraction.from-AgdaCommand (cmd as-is) where _ → pure tt
-      IO.Ref.get agda-ref >>= AgdaProcess.send-command intr
+      AgdaProcess.send-command intr agda
 
   register-command "agda-mode.compile-file" $ do
     just backend ← backends !?_ <$> Window.quick-pick (StringMap.keys backends) where _ → pure tt
     just intr ← AgdaInteraction.from-AgdaCommand (AgdaCommand.compile-file backend) where _ → pure tt
-    IO.Ref.get agda-ref >>= AgdaProcess.send-command intr
+    AgdaProcess.send-command intr agda
 
   model ← IO.Ref.get model-ref
   stp ← SemanticTokensProvider.new
     (just (EventEmitter.event $ model .tokens-request-emitter))
-    λ doc token → (response-queue <$> IO.Ref.get agda-ref) >>= JobQueue.await-push (do
+    λ doc token → agda .response-queue |> JobQueue.await-push (do
       just e ← TextEditor.active-editor where _ → throw "Busy"
       doc ← TextEditor.document e
       model ← IO.Ref.get model-ref
@@ -275,7 +270,7 @@ activate = try λ _ → do
   SemanticTokensProvider.register (language "agda" ∩ scheme "file") stp DefaultLegend
 
   DefinitionProvider.register (language "agda" ∩ scheme "file") =<<
-    DefinitionProvider.new λ doc pos tok → (response-queue <$> IO.Ref.get agda-ref) >>= JobQueue.await-push (do
+    DefinitionProvider.new λ doc pos tok → agda .response-queue |> JobQueue.await-push (do
       just e ← TextEditor.active-editor where _ → pure nothing
       doc ← TextEditor.document e
       model ← IO.Ref.get model-ref
@@ -290,7 +285,7 @@ activate = try λ _ → do
           let pos = TextDocument.position-at other (site .position - 1)
           pure (just $ Location.new (TextDocument.uri other) pos))
 
-  Workspace.on-did-change-text-document λ e → (response-queue <$> IO.Ref.get agda-ref) >>= JobQueue.await-push (do
+  Workspace.on-did-change-text-document λ e → agda .response-queue |> JobQueue.await-push (do
     model ← IO.Ref.get model-ref
     model .loaded-files !? TextDocument.file-name (e .document) |> λ where
       (just (mkFile ips tokens)) →

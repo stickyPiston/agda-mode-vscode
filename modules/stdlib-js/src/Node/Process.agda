@@ -3,6 +3,7 @@ module Node.Process where
 open import Data.String
 open import Data.List
 open import Data.IO
+open import Data.Bool
 open import Agda.Builtin.Unit
 
 module Buffer where
@@ -20,8 +21,8 @@ module Process where
     postulate spawn : String → List String → IO t
     {-# COMPILE JS spawn = cmd => args => async () => AgdaModeImports.process.spawn(cmd, args) #-}
 
-    postulate write : t → String → IO ⊤
-    {-# COMPILE JS write = proc => chunk => async () => {
+    postulate write : String → t → IO ⊤
+    {-# COMPILE JS write = chunk => proc => async () => {
       proc.stdin.write(chunk);
       return a => a["tt"]()
     } #-}
@@ -32,8 +33,15 @@ module Process where
     -- TODO: Return Disposable
     postulate on-data : t → (Buffer.t → IO ⊤) → IO ⊤
     {-# COMPILE JS on-data = proc => handler => async () => {
-        proc.stdout.on("data", data => handler(data)());
+        proc.stdout.on("data", data => { handler(data)() });
         return a => a["tt"]();
+    } #-}
+
+    -- The Bool parameters signifies whether the error was ENOENT
+    postulate on-error : t → (String → Bool → IO ⊤) → IO ⊤
+    {-# COMPILE JS on-error = proc => handler => async () => {
+      proc.on("error", e => { handler(e.message)(e.code === "ENOENT")() });
+      return a => a["tt"]();
     } #-}
 
     postulate kill : t → IO ⊤
