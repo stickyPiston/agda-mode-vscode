@@ -1,7 +1,7 @@
 module AgdaMode.Extension.Display where
 
 open import Data.String hiding (show)
-open import Data.Nat hiding (show) ; import Data.Nat as Nat
+open import Data.Nat hiding (show ; _==_) ; import Data.Nat as Nat
 open import Data.Int hiding (pos)
 open import Data.IO
 import Data.IO as IO
@@ -312,14 +312,16 @@ a when' false = []
 
 show-display-info : DisplayInfo → String
 show-display-info (all-goals-warnings errors inv vis warns) =
-  unlines $
-               ("---------- Goals ----------" when' not (null? vis))
-    ⟨ append ⟩ (map show-goal vis)
-    ⟨ append ⟩ (map show-invisible-goal inv)
-    ⟨ append ⟩ ("\n---------- Errors ----------" when' not (null? errors))
-    ⟨ append ⟩ errors
-    ⟨ append ⟩ ("\n---------- Warnings ----------\n" when' not (null? warns))
-    ⟨ append ⟩ warns
+  let content = 
+        unlines $
+                    ("---------- Goals ----------" when' not (null? vis))
+          ⟨ append ⟩ (map show-goal vis)
+          ⟨ append ⟩ (map show-invisible-goal inv)
+          ⟨ append ⟩ ("\n---------- Errors ----------" when' not (null? errors))
+          ⟨ append ⟩ errors
+          ⟨ append ⟩ ("\n---------- Warnings ----------\n" when' not (null? warns))
+          ⟨ append ⟩ warns
+   in if content == "" then "All good." else content
 show-display-info (error message) = message
 show-display-info (context ctx) = show-context ctx
 show-display-info (goal-info _ info) =
