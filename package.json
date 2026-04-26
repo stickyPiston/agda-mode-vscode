@@ -10,9 +10,6 @@
   "categories": [
     "Programming Languages"
   ],
-  "activationEvents": [
-    "onLanguage:agda"
-  ],
   "repository": "github:stickyPiston/agda-mode-vscode",
   "main": "./bundle.js",
   "contributes": {
@@ -35,7 +32,16 @@
         "id": "agda",
         "extensions": [
           ".agda"
-        ]
+        ],
+        "aliases": ["Agda", "agda"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "agda",
+        "scopeName": "source.agda",
+        "path": "./syntaxes/agda.tmLanguage.json"
       }
     ],
     "keybindings": [
