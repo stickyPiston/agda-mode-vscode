@@ -37,6 +37,9 @@ postulate intercalate : String → List String → String
 postulate _=~_ : String → String → 𝔹
 {-# COMPILE JS _=~_ = s => r => new RegExp(r).test(s) #-}
 
+postulate replace : String → String → String → String
+{-# COMPILE JS replace = r => w => s => s.replaceAll(new RegExp(r, "g"), w) #-}
+
 postulate split : String → String → List String
 {-# COMPILE JS split = s => b => s.split(b) #-}
 

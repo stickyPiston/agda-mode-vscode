@@ -122,6 +122,7 @@ module AgdaCommand where
   show-goal-command : TextDocument.t → InteractionPoint.t → List String
   show-goal-command doc ip = 
     let goal-content = doc |> TextDocument.get-text (OffsetRange.to-vsc-range doc $ InteractionPoint.content-range ip) in
+    let sanitised-goal-content = replace "\"" "\\\"" goal-content in
 
     -- We send along an up-to-date version of the interaction point's range.
     -- Agda uses this range to update its internal state, and return a correct range when responding with a
@@ -130,7 +131,7 @@ module AgdaCommand where
     --
     -- NOTE: There does seem to be a bug/inconsistency in the compiler when sending the range including markers,
     -- where the locations of errors within the hole are reported incorrectly in the display infos.
-    show-Nat (ip .id) ∷ ("(" ++ show-range doc (ip .range) ++ ")") ∷ ("\"" ++ goal-content ++ "\"") ∷ []
+    show-Nat (ip .id) ∷ ("(" ++ show-range doc (ip .range) ++ ")") ∷ ("\"" ++ sanitised-goal-content ++ "\"") ∷ []
 
   show-goal-rewrite-command : TextDocument.t → Rewrite.t → InteractionPoint.t → List String
   show-goal-rewrite-command doc r ip = Rewrite.show r ∷ show-goal-command doc ip

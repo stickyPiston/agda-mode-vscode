@@ -1,6 +1,6 @@
 module Vscode.TextEditor where
 
-open import Data.String
+open import Data.String hiding (replace)
 open import Data.IO
 open import Data.List
 open import Data.Bool
