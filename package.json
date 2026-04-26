@@ -47,52 +47,52 @@
     "keybindings": [
       {
         "command": "agda-mode.load-file",
-        "when": "editorLangId =~ /agda/",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
         "key": "ctrl+c ctrl+l"
       },
       {
         "command": "agda-mode.goal-context",
-        "when": "editorLangId =~ /agda/",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
         "key": "ctrl+c ctrl+,"
       },
       {
         "command": "agda-mode.goal-type",
-        "when": "editorLangId =~ /agda/",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
         "key": "ctrl+c ctrl+t"
       },
       {
         "command": "agda-mode.goal-env",
-        "when": "editorLangId =~ /agda/",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
         "key": "ctrl+c ctrl+e"
       },
       {
         "command": "agda-mode.goal-context-infer",
-        "when": "editorLangId =~ /agda/",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
         "key": "ctrl+c ctrl+."
       },
       {
         "command": "agda-mode.goal-context-elab",
-        "when": "editorLangId =~ /agda/",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
         "key": "ctrl+c ctrl+;"
       },
       {
         "command": "agda-mode.next-goal",
-        "when": "editorLangId =~ /agda/",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
         "key": "ctrl+c ctrl+f"
       },
       {
         "command": "agda-mode.prev-goal",
-        "when": "editorLangId =~ /agda/",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
         "key": "ctrl+c ctrl+b"
       },
       {
         "command": "agda-mode.show-metas",
-        "when": "editorLangId =~ /agda/",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
         "key": "ctrl+c ctrl+shift+/"
       },
       {
         "command": "agda-mode.show-constraints",
-        "when": "editorLangId =~ /agda/",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
         "key": "ctrl+c ctrl+="
       },
       {
@@ -105,7 +105,7 @@
       },
       {
         "command": "agda-mode.refine",
-        "when": "editorLangId =~ /agda/",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
         "key": "ctrl+c ctrl+r",
         "args": {
           "pmLambda": false
@@ -113,7 +113,7 @@
       },
       {
         "command": "agda-mode.give-goal",
-        "when": "editorLangId =~ /agda/",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
         "key": "ctrl+c ctrl+spc",
         "args": {
           "pmLambda": false
@@ -144,18 +144,22 @@
       },
       {
         "command": "agda-mode.auto-goal",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
         "key": "ctrl+c ctrl+a"
       },
       {
         "command": "agda-mode.compile-file",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
         "key": "ctrl+c ctrl+x ctrl+c"
       },
       {
         "command": "agda-mode.make-case",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
         "key": "ctrl+c ctrl+c"
       },
       {
         "command": "agda-mode.restart",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
         "key": "ctrl+c ctrl+x ctrl+r"
       }
     ],
