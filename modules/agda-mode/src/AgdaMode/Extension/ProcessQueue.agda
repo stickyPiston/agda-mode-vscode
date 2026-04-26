@@ -25,10 +25,6 @@ open import Vscode.Command
 
 open import Node.Process
 
-private
-  postulate trace : {A : Set} → A → IO ⊤
-  {-# COMPILE JS trace = A => a => async () => { console.log(a); return b => b["tt"]() } #-}
-
 module Queue where
   open import Data.List hiding (null?)
   open import Data.List using (null?) public
@@ -84,13 +80,13 @@ module AgdaProcess where
 
   -- We can send as many interactions to the Agda compiler without compromising the order of the responses or the
   -- the quality of the messages. This means we don't need to make and use a separate `JobQueue.t`.
-  send-command : AgdaInteraction.t → t → IO ⊤
-  send-command intr t = do
-    trace (AgdaInteraction.show intr)
+  send-command : OutputChannel.t → AgdaInteraction.t → t → IO ⊤
+  send-command output-chan intr t = do
+    OutputChannel.trace ("Sending interaction to Agda: " ++ AgdaInteraction.show intr) output-chan
     Ref.get (t .process) >>= Process.write (AgdaInteraction.show intr) 
 
   private
-    -- Some responses from the interactio mode might start with "JSON> ", so we strip
+    -- Some responses from the interaction mode might start with "JSON> ", so we strip
     -- those if they are present to make sure the JSON parser can parse the actual JSON.
     strip-prompt : String → String
     strip-prompt s = s |> _starts-with "JSON> " |> λ where
@@ -128,10 +124,9 @@ module AgdaProcess where
       (List.unsnoc ∘ List.map strip-prompt ∘ lines ∘ (_++ Buffer.to-string buffer) <$> Ref.get stdout-buffer) >>= λ where
         nothing → OutputChannel.error "Could not unsnoc response string" output-chan
         (just (responses , new-buffer)) → do
-          trace responses
           Ref.set stdout-buffer new-buffer
           tt <$ forM responses λ response → do
-            trace response
+            OutputChannel.trace ("Received response from Agda: " ++ response) output-chan
             res-queue |> JobQueue.push (handle-response-string model-ref response proc-ref)
 
     {-# TERMINATING #-}

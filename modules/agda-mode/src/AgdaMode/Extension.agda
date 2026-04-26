@@ -208,24 +208,24 @@ activate = try λ _ → do
   register-command "agda-mode.load-file" $ do
     just intr ← AgdaInteraction.from-AgdaCommand AgdaCommand.load where _ → pure tt
     TextDocument.save (intr .file)
-    AgdaProcess.send-command intr agda
+    AgdaProcess.send-command output-chan intr agda
 
   forM (StringMap.entries goal-context-cmds) λ (name , cmd) →
     register-command name $ do
       model ← IO.Ref.get model-ref
       just intr ← AgdaInteraction.under-cursor-command model (cmd as-is) where _ → pure tt
-      AgdaProcess.send-command intr agda
+      AgdaProcess.send-command output-chan intr agda
 
   forM (StringMap.entries goal-give-cmds) λ (name , cmd) →
     register-command-with-args name λ o → do
       model ← IO.Ref.get model-ref
       just intr ← AgdaInteraction.under-cursor-command model (cmd (get-pmLambda o)) where _ → pure tt
-      AgdaProcess.send-command intr agda
+      AgdaProcess.send-command output-chan intr agda
 
   register-command "agda-mode.make-case" $ do
     model ← IO.Ref.get model-ref
     just intr ← AgdaInteraction.under-cursor-command model AgdaCommand.make-case where _ → pure tt
-    AgdaProcess.send-command intr agda
+    AgdaProcess.send-command output-chan intr agda
 
   register-command "agda-mode.next-goal" $ do
     model ← IO.Ref.get model-ref
@@ -238,12 +238,12 @@ activate = try λ _ → do
   forM (StringMap.entries show-general-info-cmds) λ (name , cmd) →
     register-command name $ do
       just intr ← AgdaInteraction.from-AgdaCommand (cmd as-is) where _ → pure tt
-      AgdaProcess.send-command intr agda
+      AgdaProcess.send-command output-chan intr agda
 
   register-command "agda-mode.compile-file" $ do
     just backend ← backends !?_ <$> Window.quick-pick (StringMap.keys backends) where _ → pure tt
     just intr ← AgdaInteraction.from-AgdaCommand (AgdaCommand.compile-file backend) where _ → pure tt
-    AgdaProcess.send-command intr agda
+    AgdaProcess.send-command output-chan intr agda
 
   model ← IO.Ref.get model-ref
   stp ← SemanticTokensProvider.new
