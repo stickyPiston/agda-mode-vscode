@@ -74,6 +74,9 @@ module TextLine where
     postulate range : t → Range.t
     {-# COMPILE JS range = line => line.range #-}
 
+    postulate text : t → String
+    {-# COMPILE JS text = line => line.text #-}
+
 module TextDocument where
     postulate t : Set
 

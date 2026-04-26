@@ -93,6 +93,14 @@ take (suc n) [] = []
 take (suc n) (x ∷ xs) = x ∷ take n xs
 {-# COMPILE JS take = a => A => n => xs => xs.slice(0, Number(n)) #-}
 
+take-while : (A → Bool) → List A → List A
+take-while p [] = []
+take-while p (x ∷ xs) = if p x then x ∷ take-while p xs else []
+{-# COMPILE JS take-while = a => A => p => xs => {
+  const i = xs.findIndex(x => !p(x));
+  return i === -1 ? xs : xs.slice(0, i);
+} #-}
+
 -- TODO: This function is a little dubious, probably needs to be fixed
 postulate sort : List A → List A
 {-# COMPILE JS sort = _ => _ => xs => xs.toSorted() #-}

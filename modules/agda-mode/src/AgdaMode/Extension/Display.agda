@@ -16,6 +16,7 @@ open import Data.JSON
 open import Data.Product
 open import Data.JSON.Decode
 open import Agda.Builtin.Unit
+open import Agda.Builtin.Char
 
 open import Function hiding (id)
 open import Level
@@ -537,7 +538,11 @@ handle-make-case send-command model (mkMakeCase clauses ip variant) = do
   -- ```         | ```
   let pos = TextDocument.position-at doc (ip .range .start)
   let line = TextDocument.line-at doc (Position.line pos)
-  TextEditor.edit [ Edit.replace (TextLine.range line) (intercalate "\n" clauses) ] e 
+  
+  -- Save the indentation of the line we are replacing, so that we can restore it later.
+  let indentation = primStringFromList $ take-while primIsSpace (primStringToList $ TextLine.text line)
+
+  TextEditor.edit [ Edit.replace (TextLine.range line) (indentation ++ intercalate "\n" clauses) ] e 
   TextDocument.save doc
   
   -- We need to issue a reload because Agda sends interaction points that, for some reason,

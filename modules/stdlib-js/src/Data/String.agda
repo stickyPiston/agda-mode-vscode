@@ -1,7 +1,7 @@
 module Data.String where
 
 open import Agda.Builtin.String
-  using (String ; primShowString)
+  using (String ; primShowString ; primStringToList ; primStringFromList)
   renaming
     ( primStringEquality to _==_
     ) public
