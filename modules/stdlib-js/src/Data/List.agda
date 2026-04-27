@@ -33,7 +33,7 @@ map f = foldr [] λ ac x → f x ∷ ac
 for : List A → (A → B) → List B
 for = flip map
 
-null? : List A → 𝔹
+null? : List A → Bool
 null? [] = true
 null? _ = false
 
@@ -128,7 +128,7 @@ unsnoc (a ∷ as) = case unsnoc as of λ where
   }
 } #-}
 
-find : (A → 𝔹) → List A → Maybe A
+find : (A → Bool) → List A → Maybe A
 find p [] = nothing
 find p (x ∷ xs) = if p x then just x else (find p xs)
 {-# COMPILE JS find = a => A => p => xs => {
@@ -163,7 +163,7 @@ _to_ : ℕ → ℕ → List ℕ
 n to k = if k ≤ n then [] else n ∷ (suc n to k)
 {-# COMPILE JS _to_ = n => k => Array(Math.max(0, Number(k - n))).fill(null).map((_, i) => BigInt(i) + n) #-}
 
-any : (A → 𝔹) → List A → 𝔹
+any : (A → Bool) → List A → Bool
 any p = foldr false λ b a → b ∨ p a
 
 insert-after : ℕ → A → List A → List A

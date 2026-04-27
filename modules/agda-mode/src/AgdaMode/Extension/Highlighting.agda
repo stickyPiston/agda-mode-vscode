@@ -13,13 +13,16 @@ open import Data.List hiding (_++_)
 open import Data.Product
 open import Data.Nat renaming (_==_ to _==ⁿ_) hiding (show)
 import Data.Nat as Nat
-open import Data.String hiding (show)
+open import Data.String hiding (show ; _==_)
+import Data.String as String
 open import Data.Maybe using (Maybe ; just ; nothing)
 open import Agda.Builtin.Bool
+open import Agda.Builtin.Unit
 open import Function
 
 open import Vscode.Common
 open import Vscode.SemanticTokensProvider
+open import Vscode.TextEditor
 
 private postulate trace : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} {B : Set ℓ₂} → A → B → B
 {-# COMPILE JS trace = _ => _ => _ => _ => thing => val => { console.log(thing) ; return val } #-}
@@ -81,7 +84,7 @@ token-decoder = ⦇ mk-Token
     (optional-null "definitionSite" definition-site-decoder)
     (required "note" string)
     (required "range" (list nat |> index 0 |> fmap (_- 1))) (required "range" (list nat |> index 1 |> fmap (_- 1)))
-    (required "tokenBased" string <&> ("TokenBased" ==_)) ⦈
+    (required "tokenBased" string <&> ("TokenBased" String.==_)) ⦈
   where open Applicative applicative
 
 highlighting-info-decoder : Decoder (List Token.t × Bool)
@@ -134,13 +137,111 @@ divide-ranges doc r = go (line (Range.start r) - line (Range.end r))
     go zero = [ single-line-range zero ]
     go (suc n) = single-line-range n ∷ go n
 
+open Monad {{ ... }}
+
+module HighlightingDecoration where
+  data t : Set where
+    unsolved-metas-decoration : t
+    termination-decoration : t
+    coverage-decoration : t
+    positivity-decoration : t
+    missing-def-decoration : t
+    fatal-warning-decoration : t
+    dead-code-decoration : t
+    not-definitional-decoration : t
+    confluence-decoration : t
+
+  enum : List t
+  enum = unsolved-metas-decoration ∷ termination-decoration ∷ coverage-decoration
+       ∷ positivity-decoration ∷ missing-def-decoration ∷ fatal-warning-decoration
+       ∷ dead-code-decoration ∷ not-definitional-decoration ∷ confluence-decoration
+       ∷ []
+
+  from-Aspect : Aspect → List t
+  from-Aspect unsolved-meta = [ unsolved-metas-decoration ]
+  from-Aspect unsolved-constraint = [ unsolved-metas-decoration ]
+  from-Aspect termination-problem = [ termination-decoration ]
+  from-Aspect coverage-problem = [ coverage-decoration ]
+  from-Aspect positivity-problem = [ positivity-decoration ]
+  from-Aspect dead-code = [ dead-code-decoration ]
+  from-Aspect catchall-clause = [ not-definitional-decoration ]
+  from-Aspect confluence-problem = [ confluence-decoration ]
+  from-Aspect _ = []
+
+  _==_ : t → t → Bool
+  unsolved-metas-decoration == unsolved-metas-decoration = true
+  termination-decoration == termination-decoration = true
+  coverage-decoration == coverage-decoration = true
+  positivity-decoration == positivity-decoration = true
+  missing-def-decoration == missing-def-decoration = true
+  fatal-warning-decoration == fatal-warning-decoration = true
+  dead-code-decoration == dead-code-decoration = true
+  not-definitional-decoration == not-definitional-decoration = true
+  confluence-decoration == confluence-decoration = true
+  _ == _ = false
+
+  private
+    bg-decoration : String → IO DecorationType.t
+    bg-decoration colour = DecorationType.Options.new
+      <&> DecorationType.Options.set-background-colour colour
+      >>= DecorationType.create
+
+  init : t → IO DecorationType.t
+  init unsolved-metas-decoration = bg-decoration "#ffff00"
+  init termination-decoration = bg-decoration "#ffa07a"
+  init coverage-decoration = bg-decoration "#f5deb3"
+  init positivity-decoration = bg-decoration "#cd853f"
+  init missing-def-decoration = bg-decoration "#ffa500"
+  init fatal-warning-decoration = bg-decoration "#f08080"
+  init dead-code-decoration = bg-decoration "#a9a9a9"
+  init not-definitional-decoration = bg-decoration "#f5f5f5"
+  init confluence-decoration = bg-decoration "#ffc0cb"
+open HighlightingDecoration using
+  ( unsolved-metas-decoration ; termination-decoration ; coverage-decoration
+  ; positivity-decoration ; missing-def-decoration ; fatal-warning-decoration
+  ; dead-code-decoration ; not-definitional-decoration ; confluence-decoration
+  ) public
+
+module HighlightingDecorationMap where
+  t : Set
+  t = HighlightingDecoration.t → DecorationType.t
+
+  create : IO t
+  create = do
+    let open HighlightingDecoration
+    umd ← init unsolved-metas-decoration ; td ← init termination-decoration
+    cd ← init coverage-decoration ; pd ← init positivity-decoration
+    mdd ← init missing-def-decoration ; fwd ← init fatal-warning-decoration
+    dcd ← init dead-code-decoration ; ndd ← init not-definitional-decoration
+    cfd ← init confluence-decoration
+    pure λ where
+      unsolved-metas-decoration → umd ; termination-decoration → td
+      coverage-decoration → cd ; positivity-decoration → pd
+      missing-def-decoration → mdd ; fatal-warning-decoration → fwd
+      dead-code-decoration → dcd ; not-definitional-decoration → ndd
+      confluence-decoration → cfd
+
+open TraversableM {{ ... }}
+
+token-position : TextDocument.t → Token.t → List Range.t
+token-position doc token =
+  let original-range = Range.new (TextDocument.position-at doc (token .start)) (TextDocument.position-at doc (token .end)) in
+  divide-ranges doc original-range
+
+apply-decorations : TextEditor.t → TextDocument.t → HighlightingDecorationMap.t → List Token.t → IO ⊤
+apply-decorations ed doc hd-map tokens = do
+  let all-decorations = concat-map (λ t → concat-map (λ a → map (t ,_) (HighlightingDecoration.from-Aspect a)) (atoms t)) tokens
+  HighlightingDecoration.enum |> mapM λ dec → do
+    let specific-tokens = all-decorations |> map-Maybe λ (t , d) → if d HighlightingDecoration.== dec then just t else nothing
+    let positions = concat-map (token-position doc) specific-tokens
+    TextEditor.set-decoration (hd-map dec) positions ed
+  pure tt
+
 make-highlighting-tokens : TextDocument.t → List Token.t → List SemanticToken.t
 make-highlighting-tokens doc = concat ∘ map to-semantic-token
   where
     to-semantic-token : Token.t → (List SemanticToken.t)
     to-semantic-token token =
-      let open Token
-          original-range = Range.new (TextDocument.position-at doc (token .start)) (TextDocument.position-at doc (token .end))
-          single-line-ranges = divide-ranges doc original-range
+      let single-line-ranges = token-position doc token
           token-type , mods = aspect→legend (token .atoms)
        in map (λ r → record { range = r ; token-type = token-type ; modifiers = mods }) single-line-ranges

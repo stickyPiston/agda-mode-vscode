@@ -73,7 +73,7 @@ init keymap = do
   sbi₂ ← StatusBarItem.create "agdaMode.inputMode" StatusBarItem.left nothing
   let open DecorationType
   dec₁ ← Options.new >>= create ∘ Options.set-text-decoration "underline"
-  dec₂ ← Options.new >>= create ∘ Options.set-background-colour "rgba(0,0,0,0.15)"
+  dec₂ ← Options.new >>= create ∘ Options.set-background-colour "#fffafa"
   pure record
     { panel = nothing
     ; status-bar-item = sbi₁
@@ -198,6 +198,8 @@ activate = try λ _ → do
     Window.show-error-message "Failed to read the keymap for the input mode. This is an internal error, please report this." []
     OutputChannel.error ("Failed to read the keymap at the following path: " String.++ keymap-path) output-chan
 
+  hd-map ← HighlightingDecorationMap.create
+
   model-ref ← init init-keymap >>= IO.Ref.new 
   agda , disposable ← AgdaProcess.spawn output-chan model-ref
 
@@ -259,11 +261,11 @@ activate = try λ _ → do
           let semantic-tokens = make-highlighting-tokens doc tokens
           mapA (SemanticTokensBuilder.push stb) semantic-tokens
           built-tokens ← SemanticTokensBuilder.build stb
-          TextEditor.active-editor >>= λ where
-            (just e) →
-              let ranges = map (OffsetRange.to-vsc-range doc ∘ InteractionPoint.range) ips in
-              TextEditor.set-decoration (model .ip-decoration) ranges e
-            nothing → pure tt
+
+          apply-decorations e doc hd-map tokens
+          let ranges = map (OffsetRange.to-vsc-range doc ∘ InteractionPoint.range) ips
+          TextEditor.set-decoration (model .ip-decoration) ranges e
+
           pure built-tokens
         nothing → throw "Busy")
       
