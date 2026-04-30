@@ -21,6 +21,8 @@ open import Data.Map
 open import Node.FileSystem
 
 open import AgdaMode.Extension.Highlighting
+open import AgdaMode.Extension.Highlighting.Decode
+open import AgdaMode.Extension.Highlighting.Legend
 open import AgdaMode.Extension.Keymap
 open import AgdaMode.Extension.Display
 open import AgdaMode.Extension.Model
@@ -52,19 +54,12 @@ postulate throw : ∀ {ℓ} {A : Set ℓ} {E : Set} → E → IO A
 
 -- Actual app
 
-DefaultLegend : Legend.t
-DefaultLegend =
-  record
-    { TokenType = DefaultTokenType
-    ; Modifier = DefaultModifier
-    }
-
 open IO.Effectful
 
 open import Effect.Monad
 open Monad {{ ... }}
 open MonadPlus {{ ... }} using (⊘ ; _<|>_)
-open TraversableM {{ ... }}
+open TraversableM {{ ... }} 
 
 init : Trie.t → IO Model
 init keymap = do
@@ -125,7 +120,7 @@ postulate get-pmLambda : GiveArgsObject → Bool
 {-# COMPILE JS get-pmLambda = o => o?.pmLambda ?? false #-}
 
 set-token-range : Token.t → OffsetRange.t → Token.t
-set-token-range t (offset-range start length) = record t { start = start ; end = start + length }
+set-token-range t r = record t { range = r }
 
 handle-offset-change : Change.t → OffsetRange.t → Maybe OffsetRange.t
 handle-offset-change c r =
@@ -135,7 +130,7 @@ handle-offset-change c r =
 
 handle-tokens-change : List Token.t → Change.t → List Token.t
 handle-tokens-change tokens change = tokens |> map-Maybe λ token →
-  offset-range (Token.start token) (Token.end token - Token.start token)
+  token .range
   |> handle-offset-change change
   |> fmap (set-token-range token)
 
@@ -188,6 +183,14 @@ jump-to-goal model find-next = model |> with-current-file λ ed doc file → do
   o ← ⦇ TextDocument.offset-at (TextEditor.document ed) (TextEditor.cursor-pos ed) ⦈
   find-next o (file .interaction-points) |> maybe (pure file) λ ip → file <$ jump-to-position doc (ip .range .start + 3)
 
+compare-doc : TextDocument.t → TextDocument.t → Bool
+compare-doc = (Uri.to-string ∘ TextDocument.uri) on String._==_
+
+get-editor-from-document : TextDocument.t → IO (Maybe TextEditor.t)
+get-editor-from-document doc = do
+  docs ← Window.visible-editors >>= mapM λ editor → (editor ,_) <$> TextEditor.document editor
+  docs |> find (λ (e , d) → compare-doc doc d) |> fmap Σ.fst |> pure
+
 activate : IO ⊤
 activate = try λ _ → do
   output-chan ← OutputChannel.create "Agda Mode"
@@ -198,7 +201,7 @@ activate = try λ _ → do
     Window.show-error-message "Failed to read the keymap for the input mode. This is an internal error, please report this." []
     OutputChannel.error ("Failed to read the keymap at the following path: " String.++ keymap-path) output-chan
 
-  hd-map ← HighlightingDecorationMap.create
+  hd-map ← HighlightDecorationMap.init
 
   model-ref ← init init-keymap >>= IO.Ref.new 
   agda , disposable ← AgdaProcess.spawn output-chan model-ref
@@ -251,22 +254,14 @@ activate = try λ _ → do
   stp ← SemanticTokensProvider.new
     (just (EventEmitter.event $ model .tokens-request-emitter))
     λ doc token → agda .response-queue |> JobQueue.await-push (do
-      just e ← TextEditor.active-editor where _ → throw "Busy"
-      doc ← TextEditor.document e
       model ← IO.Ref.get model-ref
       case model .loaded-files !? TextDocument.file-name doc of λ where
         (just (mkFile ips tokens)) → do
-          let open TraversableA IO.Effectful.applicative
-          stb ← SemanticTokensBuilder.new =<< Legend.build DefaultLegend
-          let semantic-tokens = make-highlighting-tokens doc tokens
-          mapA (SemanticTokensBuilder.push stb) semantic-tokens
-          built-tokens ← SemanticTokensBuilder.build stb
-
-          apply-decorations e doc hd-map tokens
-          let ranges = map (OffsetRange.to-vsc-range doc ∘ InteractionPoint.range) ips
-          TextEditor.set-decoration (model .ip-decoration) ranges e
-
-          pure built-tokens
+          get-editor-from-document doc >>= maybe (pure tt) λ e → do
+            apply-decorations hd-map e tokens
+            let ranges = map (OffsetRange.to-vsc-range doc ∘ InteractionPoint.range) ips
+            TextEditor.set-decoration (model .ip-decoration) ranges e
+          apply-semantic-tokens doc tokens
         nothing → throw "Busy")
       
   SemanticTokensProvider.register (language "agda" ∩ scheme "file") stp DefaultLegend
@@ -279,8 +274,7 @@ activate = try λ _ → do
       let offset = TextDocument.offset-at doc pos
       from-Maybe (pure nothing) $ do
         mkFile ips tokens ← model .loaded-files !? TextDocument.file-name doc
-        let open Token
-        token ← find (λ tok → OffsetRange.contains? (offset-range (tok .start) (tok .end - tok .start)) offset) tokens
+        token ← find (λ tok → OffsetRange.contains? (tok .range) offset) tokens
         site ← token .definition-site
         just $ do
           other ← TextDocument.open-path (site .filepath)

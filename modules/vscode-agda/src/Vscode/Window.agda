@@ -55,7 +55,7 @@ module TextDocumentShowOptions where
   open import Vscode.Panel
 
   record t : Set where field
-    preserve-focus preview : 𝔹
+    preserve-focus preview : Bool
     selection : Range.t
     view-column : ViewColumn.t
   open t public
@@ -101,3 +101,6 @@ module Window where
     const answer = await AgdaModeImports.vscode.window.showErrorMessage(msg, ...items.map(i => ({ title: i })));
     return answer ? (a => a["just"](answer.title)) : (a => a["nothing"]());
   } #-}
+
+  postulate visible-editors : IO (List TextEditor.t)
+  {-# COMPILE JS visible-editors = async () => AgdaModeImports.vscode.window.visibleTextEditors #-}

@@ -29,6 +29,9 @@ module Uri where
   postulate file : String → t
   {-# COMPILE JS file = path => AgdaModeImports.vscode.URI.file(path) #-}
 
+  postulate to-string : t → String
+  {-# COMPILE JS to-string = uri => uri.toString() #-}
+
 module Position where
     postulate t : Set
     -- TODO: Turn t into a record

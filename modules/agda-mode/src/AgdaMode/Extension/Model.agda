@@ -18,6 +18,7 @@ open import Effect.Monad
 open Monad {{ ... }}
 
 open import AgdaMode.Extension.Highlighting
+open import AgdaMode.Extension.Highlighting.Decode
 open import AgdaMode.Extension.Keymap
 open import AgdaMode.Extension.Goals
 open import AgdaMode.Extension.Position

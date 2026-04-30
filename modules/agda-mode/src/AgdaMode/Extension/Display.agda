@@ -22,6 +22,7 @@ open import Function hiding (id)
 open import Level
 
 open import AgdaMode.Extension.Highlighting
+open import AgdaMode.Extension.Highlighting.Decode
 open import AgdaMode.Extension.Model
 open import AgdaMode.Extension.Position
 

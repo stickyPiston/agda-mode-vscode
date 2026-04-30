@@ -24,6 +24,15 @@ foldr b f (x ∷ xs) = f (foldr b f xs) x
 
 {-# COMPILE JS foldr = a => A => b => B => b => f => xs => xs.reduceRight((ac, e) => f(ac)(e), b) #-}
 
+foldl : B → (B → A → B) → List A → B
+foldl b f [] = b
+foldl b f (x ∷ xs) = foldl (f b x) f xs
+{-# COMPILE JS foldl = a => A => b => B => b => f => xs => xs.reduce((ac, e) => f(ac)(e), b) #-}
+
+head : List A → Maybe A
+head [] = nothing
+head (x ∷ _) = just x
+
 postulate _times_ : Nat → (Nat → A) → List A
 {-# COMPILE JS _times_ = a => A => n => f => Array(Number(n)).fill(null).map((_, i) => f(BigInt(i))) #-}
 
@@ -179,33 +188,12 @@ Maybe-to-List (just x) = [ x ]
 map-Maybe : (A → Maybe B) → List A → List B
 map-Maybe f = concat-map λ a → Maybe-to-List (f a)
 
-record List⁺ (A : Set a) : Set (lsuc a) where
-  constructor _|:_
-  field
-    head : A
-    tail : List A
-open List⁺ public
-
-module _ where
-  open Semigroup {{ ... }}
-
-  mconcat⁺ : {{ s : Semigroup A }} → List⁺ A → A
-  mconcat⁺ (head |: tail) = foldr head _<>_ tail
-
-module _ where
-  open Monoid {{ ... }}
-
-  mconcat : {{ m : Monoid A }} → List A → A
-  mconcat {{ m }} as = foldr empty _<>_ as
-
-instance
-  List-Semigroup : Semigroup (List A)
-  List-Semigroup = record { _<>_ = _++_ }
-
-  List-Monoid : Monoid (List A)
-  List-Monoid = record { semigroup = List-Semigroup ; empty = [] }
-
 open import Effect.Applicative
+
+open Alternative {{ ... }}
+
+asum : {{ Alternative M }} → List (M A) → M A
+asum {{ alt }} = foldr ⊘ _<|>_
 
 module TraversableA (applicative : Applicative F) where
   open Applicative applicative
