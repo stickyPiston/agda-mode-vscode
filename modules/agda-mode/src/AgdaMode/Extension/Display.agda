@@ -224,6 +224,23 @@ module GoalInfo where
     "NormalForm" → (| normal-form (required "computeMode" ComputeMode.decoder) (required "expr" string) |)
     _ → ⊘
 
+module ModuleContents where
+  record t : Set where
+    constructor mkModuleContents
+    field
+      names : List String
+      contents : List (String × String)
+      -- TODO: telescope
+  open t public
+
+  contents-item-decoder : Decoder (String × String)
+  contents-item-decoder = (| required "name" string , required "term" string |)
+
+  decoder : Decoder t
+  decoder = (| mkModuleContents (required "names" (list string)) (required "contents" (list contents-item-decoder)) |)
+
+open ModuleContents using (mkModuleContents ; names ; contents) public
+
 data DisplayInfo : Set where
   all-goals-warnings :
     (errors : List String)
@@ -235,6 +252,7 @@ data DisplayInfo : Set where
   -- goal-info : InteractionPoint.t → GoalInfo → DisplayInfo
   intro-not-found : DisplayInfo
   goal-specific : GoalInfo.t → InteractionPoint.t → DisplayInfo
+  module-contents : ModuleContents.t → DisplayInfo
 
 error-decoder : Decoder String
 error-decoder = required "message" string
@@ -306,6 +324,7 @@ display-info-decoder = do
         <$> required "goalInfo" GoalInfo.decoder
         <*> required "interactionPoint" interaction-point-decoder
       "IntroNotFound" → succeed intro-not-found
+      "ModuleContents" → (| module-contents ModuleContents.decoder |)
       _ → ⊘
 
 _when'_ : A → Bool → List A
@@ -329,13 +348,16 @@ show-display-info (context ctx) = show-context ctx
 show-display-info (goal-specific (GoalInfo.inferred-type type) ip) = type
 show-display-info (goal-specific (GoalInfo.normal-form _ nf) ip) = nf
 show-display-info (goal-specific (GoalInfo.current-goal _ type) ip) =
-  "?" ++ Nat.show (ip .id) ++ " ∈ " ++ type
+  "?" ++ Nat.show (ip .id) ++ " : " ++ type
 -- show-display-info (goal-info _ info) =
 --   let context-info = info .entries |> maybe "" (("\n----- Context ---------------------------\n" ++_) ∘ intercalate "\n" ∘ map show-context-item) in
 --   let aux-info = show-aux (info .type-aux) in
 --   "Goal: " ++ info .type ++ aux-info ++ context-info
 show-display-info (goal-specific _ _) = ""
 show-display-info intro-not-found = "No introduction forms found."
+show-display-info (module-contents (mkModuleContents names contents)) =
+  "Modules\n" ++ intercalate "\n" (map ("  " ++_) names) ++
+    "\nNames" ++ intercalate "\n" (map (λ (name , term) → "  " ++ name ++ " : " ++ term) contents)
 
 open import Agda.Builtin.Equality
 

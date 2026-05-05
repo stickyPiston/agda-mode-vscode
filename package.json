@@ -190,6 +190,11 @@
         "when": "editorLangId =~ /agda/ && !editor.hasSelection",
         "key": "ctrl+u ctrl+u ctrl+u ctrl+c ctrl+n",
         "args": { "computeMode": "HeadCompute" }
+      },
+      {
+        "command": "agda-mode.module-contents",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+c ctrl+o"
       }
     ],
     "commands": [

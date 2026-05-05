@@ -137,12 +137,14 @@ module AgdaCommand where
     -- Give uses the boolean to indicate whether force should be used,
     -- refine uses the boolean to indicate whether the compiler should create case lambdas when intro'ing functions
     give refine-or-intro : Bool → InteractionPoint.t → t
-    context goal-type infer goal-type-context goal-type-context-infer goal-type-context-check auto-goal
-      : Rewrite.t → InteractionPoint.t → t
+    context goal-type infer goal-type-context goal-type-context-infer
+      goal-type-context-check auto-goal module-contents-goal
+        : Rewrite.t → InteractionPoint.t → t
     show-metas show-constraints : Rewrite.t → t
     make-case : InteractionPoint.t → t
     compile-file : Backend.t → t
     compute : ComputeMode.t → InteractionPoint.t → t
+    module-contents-toplevel : Rewrite.t → String → t
 
   show-pos : Nat → TextDocument.t → String
   show-pos offset doc =
@@ -186,11 +188,13 @@ module AgdaCommand where
   show-list doc (goal-type-context-infer r ip) = "Cmd_goal_type_context_infer" ∷ show-goal-rewrite-command doc r ip
   show-list doc (goal-type-context-check r ip) = "Cmd_goal_type_context_check" ∷ show-goal-rewrite-command doc r ip
   show-list doc (auto-goal r ip) = "Cmd_autoOne" ∷ show-goal-rewrite-command doc r ip
+  show-list doc (module-contents-goal r ip) = "Cmd_show_module_contents" ∷ show-goal-rewrite-command doc r ip
   show-list doc (show-constraints r) = "Cmd_constraints" ∷ Rewrite.show r ∷ []
   show-list doc (show-metas r) = "Cmd_metas" ∷ Rewrite.show r ∷ []
   show-list doc (make-case ip) = "Cmd_make_case" ∷ show-goal-command doc ip
   show-list doc (compile-file backend) = "Cmd_compile" ∷ Backend.encode backend ∷ ("\"" ++ TextDocument.file-name doc ++ "\"") ∷ "[]" ∷ []
   show-list doc (compute mode ip) = "Cmd_compute" ∷ ComputeMode.show mode ∷ show-goal-command doc ip
+  show-list doc (module-contents-toplevel r name) = "Cmd_show_module_contents_toplevel" ∷ Rewrite.show r ∷ ("\"" ++ name ++ "\"") ∷ []
 
   show : TextDocument.t → t → String
   show = intercalate " " ∘₂ show-list
