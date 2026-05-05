@@ -14,6 +14,12 @@ open import Agda.Builtin.Unit
 
 open import Vscode.Common
 
+module Selection where
+  postulate t : Set
+
+  postulate new : Position.t → Position.t → t
+  {-# COMPILE JS new = anchor => active => new AgdaModeImports.vscode.Selection(anchor, active) #-}
+
 module DecorationType where
   module Options where
     postulate t : Set
@@ -86,6 +92,9 @@ module TextEditor where
 
   edit : List Edit.t → t → IO Bool
   edit edits = Internal.edit λ b → edits |> foldr b _|>_
+
+  postulate set-selections : List Selection.t → t → IO ⊤
+  {-# COMPILE JS set-selections = sels => e => async () => { e.selections = sels; return a => a["tt"]() } #-}
 
 module TextDocumentContentChangeEvent where
   record t : Set where

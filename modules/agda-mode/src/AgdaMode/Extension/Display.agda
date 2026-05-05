@@ -482,6 +482,14 @@ handle-interaction-points model ips = TextEditor.active-editor >>= maybe (pure m
 
   TextEditor.edit edits e
   TextDocument.save doc
+  doc ← TextEditor.document e
+
+  -- If a new hole has been bug, place the cursor in the middle of the first new goal
+  expanded-ips |> λ where
+    (ip ∷ _) → 
+      let pos = TextDocument.position-at doc (ip .range .start + 3) in
+      TextEditor.set-selections [ Selection.new pos pos ] e
+    _ → pure tt
 
   model .loaded-files !? TextDocument.file-name doc
     |> (λ where
