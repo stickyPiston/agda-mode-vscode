@@ -110,16 +110,12 @@ backends : StringMap.t Backend.t
 backends = (ghc true ∷ ghc false ∷ js ∷ html ∷ latex ∷ quicklatex ∷ [])
   |> foldr StringMap.empty λ m b → StringMap.insert (Backend.show b) b m
 
-private
-  postulate timeout : Nat → IO ⊤
-  {-# COMPILE JS timeout = n => () => new Promise(resolve => setTimeout(() => resolve(), Number(n))) #-}
-
-  postulate log : {A : Set} → A → IO ⊤
-  {-# COMPILE JS log = A => a => async () => { console.log(a); return b => b["tt"]() } #-}
-
+-- TODO: Turn this into decoders?
 postulate GiveArgsObject : Set
 postulate get-pmLambda : GiveArgsObject → Bool
 {-# COMPILE JS get-pmLambda = o => o?.pmLambda ?? false #-}
+postulate get-compute-mode-string : GiveArgsObject → String
+{-# COMPILE JS get-compute-mode-string = o => o?.computeMode ?? "" #-}
 
 set-token-range : Token.t → OffsetRange.t → Token.t
 set-token-range t r = record t { range = r }
@@ -254,6 +250,12 @@ activate = try λ _ → do
   register-command "agda-mode.compile-file" $ do
     just backend ← backends !?_ <$> Window.quick-pick (StringMap.keys backends) where _ → pure tt
     just intr ← AgdaInteraction.from-AgdaCommand (AgdaCommand.compile-file backend) where _ → pure tt
+    AgdaProcess.send-command output-chan intr agda
+
+  register-command-with-args "agda-mode.compute" λ o → do
+    model ← IO.Ref.get model-ref
+    just mode ← pure $ ComputeMode.decoder =<< (just (j-string $ get-compute-mode-string o)) where _ → pure tt
+    just intr ← AgdaInteraction.under-cursor-command model (AgdaCommand.compute mode) where _ → pure tt
     AgdaProcess.send-command output-chan intr agda
 
   model ← IO.Ref.get model-ref

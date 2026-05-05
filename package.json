@@ -161,6 +161,35 @@
         "command": "agda-mode.restart",
         "when": "editorLangId =~ /agda/ && !editor.hasSelection",
         "key": "ctrl+c ctrl+x ctrl+r"
+      },
+      {
+        "command": "agda-mode.infer",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+c ctrl+d"
+      },
+      {
+        "command": "agda-mode.compute",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+c ctrl+n",
+        "args": { "computeMode": "DefaultCompute" }
+      },
+      {
+        "command": "agda-mode.compute",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+c ctrl+n",
+        "args": { "computeMode": "IgnoreAbstract" }
+      },
+      {
+        "command": "agda-mode.compute",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+u ctrl+c ctrl+n",
+        "args": { "computeMode": "UseShowInstance" }
+      },
+      {
+        "command": "agda-mode.compute",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+u ctrl+u ctrl+c ctrl+n",
+        "args": { "computeMode": "HeadCompute" }
       }
     ],
     "commands": [

@@ -6,7 +6,7 @@ open import Data.Maybe
 open import Data.String hiding (show)
 import Data.String as String
 open import Data.Map
-open import Data.List hiding (_++_)
+open import Data.List hiding (_++_ ; head)
 open import Data.Product
 open import Data.Nat renaming (show to show-Nat)
 import Data.Nat as Nat
@@ -15,7 +15,9 @@ open import Function hiding (id)
 open import Data.IO
 open import Data.JSON.Decode
 open import Effect.Monad
+
 open Monad {{ ... }}
+open MonadPlus {{ ... }} using (_<|>_ ; ⊘)
 
 open import AgdaMode.Extension.Highlighting
 open import AgdaMode.Extension.Highlighting.Decode
@@ -82,7 +84,16 @@ module Rewrite where
   show head-normal = "HeadNormal"
   show simplified = "Simplified"
   show normalised = "Normalised"
-open Rewrite hiding (t ; show) public
+
+  decoder : Decoder t
+  decoder = string >>= λ where
+    "AsIs" → succeed as-is
+    "Instantiated" → succeed instantiated
+    "HeadNormal" → succeed head-normal
+    "Simplified" → succeed simplified
+    "Normalised" → succeed normalised
+    _ → ⊘
+open Rewrite hiding (t ; show ; decoder) public
 
 module Backend where
   data t : Set where
@@ -101,6 +112,25 @@ module Backend where
   encode t = show t
 open Backend using (ghc ; js ; html ; latex ; quicklatex) public
 
+module ComputeMode where
+  data t : Set where
+    default head ignore-abstract use-show-instance : t
+
+  decoder : Decoder t
+  decoder = string >>= λ where
+    "DefaultCompute" → succeed default
+    "HeadCompute" → succeed head
+    "IgnoreAbstract" → succeed ignore-abstract
+    "UseShowInstance" → succeed use-show-instance
+    _ → ⊘
+
+  -- TODO: make case doesn't work here
+  show : t → String
+  show default = "DefaultCompute"
+  show head = "HeadCompute"
+  show ignore-abstract = "IgnoreAbstract"
+  show use-show-instance = "UseShowInstance"
+
 module AgdaCommand where
   data t : Set where
     load : t
@@ -112,6 +142,7 @@ module AgdaCommand where
     show-metas show-constraints : Rewrite.t → t
     make-case : InteractionPoint.t → t
     compile-file : Backend.t → t
+    compute : ComputeMode.t → InteractionPoint.t → t
 
   show-pos : Nat → TextDocument.t → String
   show-pos offset doc =
@@ -159,6 +190,7 @@ module AgdaCommand where
   show-list doc (show-metas r) = "Cmd_metas" ∷ Rewrite.show r ∷ []
   show-list doc (make-case ip) = "Cmd_make_case" ∷ show-goal-command doc ip
   show-list doc (compile-file backend) = "Cmd_compile" ∷ Backend.encode backend ∷ ("\"" ++ TextDocument.file-name doc ++ "\"") ∷ "[]" ∷ []
+  show-list doc (compute mode ip) = "Cmd_compute" ∷ ComputeMode.show mode ∷ show-goal-command doc ip
 
   show : TextDocument.t → t → String
   show = intercalate " " ∘₂ show-list

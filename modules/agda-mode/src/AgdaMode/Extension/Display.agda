@@ -5,7 +5,7 @@ open import Data.Nat hiding (show ; _==_) ; import Data.Nat as Nat
 open import Data.Int hiding (pos ; _+_)
 open import Data.IO
 import Data.IO as IO
-open import Data.List hiding (any) renaming (_++_ to _++ˡ_)
+open import Data.List hiding (any ; head) renaming (_++_ to _++ˡ_)
 import Data.List as List
 open import Data.Maybe
 open import Data.Maybe.Effectful
@@ -209,20 +209,20 @@ show-aux goal-only = ""
 show-aux (goal-and-have expr) = "\nHave: " ++ expr
 show-aux (goal-and-elaboration expr) = "\nElaborated: " ++ expr
 
-record GoalInfo : Set where
-  constructor mkGoalInfo
-  field
-    entries : Maybe (List ContextItem)
-    type : String
-    type-aux : TypeAux
-    -- There is more field idk what do mean yet...
-open GoalInfo
+module GoalInfo where
+  data t : Set where
+    inferred-type : String → t
+    current-goal : Rewrite.t → String → t
+    normal-form : ComputeMode.t → String → t
+    goal-type : Maybe (List ContextItem) → String → TypeAux → t
 
-goal-info-decoder : Decoder GoalInfo
-goal-info-decoder = mkGoalInfo
-  <$> optional "entries" (list context-item-decoder)
-  <*> required "type" string
-  <*> required "typeAux" type-aux-decoder
+  decoder : Decoder t
+  decoder = required "kind" string >>= λ where
+    "InferredType" → (| inferred-type (required "expr" string) |)
+    "CurrentGoal" → (| current-goal (required "rewrite" Rewrite.decoder) (required "type" string) |)
+    "GoalType" → (| goal-type (optional "entries" (list context-item-decoder)) (required "type" string) (required "typeAux" type-aux-decoder) |)
+    "NormalForm" → (| normal-form (required "computeMode" ComputeMode.decoder) (required "expr" string) |)
+    _ → ⊘
 
 data DisplayInfo : Set where
   all-goals-warnings :
@@ -232,8 +232,9 @@ data DisplayInfo : Set where
     (warnings : List String) → DisplayInfo
   error : String → DisplayInfo
   context : Context → DisplayInfo
-  goal-info : InteractionPoint.t → GoalInfo → DisplayInfo
+  -- goal-info : InteractionPoint.t → GoalInfo → DisplayInfo
   intro-not-found : DisplayInfo
+  goal-specific : GoalInfo.t → InteractionPoint.t → DisplayInfo
 
 error-decoder : Decoder String
 error-decoder = required "message" string
@@ -301,9 +302,9 @@ display-info-decoder = do
         <*> required "warnings" (list error-decoder)
       "Error" → error <$> required "error" (required "message" string)
       "Context" → context <$> context-decoder
-      "GoalSpecific" → goal-info
-        <$> required "interactionPoint" interaction-point-decoder
-        <*> required "goalInfo" goal-info-decoder
+      "GoalSpecific" → goal-specific
+        <$> required "goalInfo" GoalInfo.decoder
+        <*> required "interactionPoint" interaction-point-decoder
       "IntroNotFound" → succeed intro-not-found
       _ → ⊘
 
@@ -325,10 +326,15 @@ show-display-info (all-goals-warnings errors inv vis warns) =
    in if content == "" then "All good." else content
 show-display-info (error message) = message
 show-display-info (context ctx) = show-context ctx
-show-display-info (goal-info _ info) =
-  let context-info = info .entries |> maybe "" (("\n----- Context ---------------------------\n" ++_) ∘ intercalate "\n" ∘ map show-context-item) in
-  let aux-info = show-aux (info .type-aux) in
-  "Goal: " ++ info .type ++ aux-info ++ context-info
+show-display-info (goal-specific (GoalInfo.inferred-type type) ip) = type
+show-display-info (goal-specific (GoalInfo.normal-form _ nf) ip) = nf
+show-display-info (goal-specific (GoalInfo.current-goal _ type) ip) =
+  "?" ++ Nat.show (ip .id) ++ " ∈ " ++ type
+-- show-display-info (goal-info _ info) =
+--   let context-info = info .entries |> maybe "" (("\n----- Context ---------------------------\n" ++_) ∘ intercalate "\n" ∘ map show-context-item) in
+--   let aux-info = show-aux (info .type-aux) in
+--   "Goal: " ++ info .type ++ aux-info ++ context-info
+show-display-info (goal-specific _ _) = ""
 show-display-info intro-not-found = "No introduction forms found."
 
 open import Agda.Builtin.Equality
