@@ -3,6 +3,7 @@ module AgdaMode.Extension.Model where
 open import Agda.Builtin.Unit
 
 open import Data.Maybe
+open import Data.Maybe.Effectful
 open import Data.String hiding (show)
 import Data.String as String
 open import Data.Map
@@ -197,7 +198,7 @@ module AgdaCommand where
   show-list doc (compile-file backend) = "Cmd_compile" ∷ Backend.encode backend ∷ ("\"" ++ TextDocument.file-name doc ++ "\"") ∷ "[]" ∷ []
   show-list doc (compute mode ip) = "Cmd_compute" ∷ ComputeMode.show mode ∷ show-goal-command doc ip
   show-list doc (module-contents-toplevel r name) = "Cmd_show_module_contents_toplevel" ∷ Rewrite.show r ∷ ("\"" ++ name ++ "\"") ∷ []
-  show-list doc (why-in-scope-toplevel term) = "Cmd_show_module_contents_toplevel" ∷ ("\"" ++ term ++ "\"") ∷ []
+  show-list doc (why-in-scope-toplevel term) = "Cmd_why_in_scope_toplevel" ∷ ("\"" ++ term ++ "\"") ∷ []
 
   show : TextDocument.t → t → String
   show = intercalate " " ∘₂ show-list
@@ -229,6 +230,15 @@ module AgdaInteraction where
     model .loaded-files !? TextDocument.file-name doc |> maybe (pure nothing) λ (record { interaction-points = ips }) → do
      ips |> find (λ ip → OffsetRange.contains? (ip .range) cursor) |> maybe (pure nothing) λ ip → do
       pure $ just (iotcm doc (cmd ip))
+
+  input-prompt-command : (String → AgdaCommand.t) → IO (Maybe t)
+  input-prompt-command cmd = do
+    just e ← TextEditor.active-editor where _ → pure nothing
+    doc ← TextEditor.document e
+    Window.show-input-box >>= λ where
+      (just input) → pure $ just (iotcm doc (cmd input))
+      nothing → pure nothing
+    
 open AgdaInteraction using (iotcm ; file ; command) public
 
 module Config where
