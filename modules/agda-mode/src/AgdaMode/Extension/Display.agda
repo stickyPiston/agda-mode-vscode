@@ -395,7 +395,7 @@ record Status : Set where
 open Status
 
 show-status : Status → String
-show-status status = intercalate "," $
+show-status status = intercalate ", " $
              ("Checked" when' status .checked)
   ⟨ append ⟩ ("ShowImpl" when' status .show-implicit)
   ⟨ append ⟩ ("ShowIrr" when' status .show-irrelevant)

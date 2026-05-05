@@ -200,6 +200,16 @@
         "command": "agda-mode.why-in-scope",
         "when": "editorLangId =~ /agda/ && !editor.hasSelection",
         "key": "ctrl+c ctrl+w"
+      },
+      {
+        "command": "agda-mode.toggle-hidden",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+c ctrl+x ctrl+h"
+      },
+      {
+        "command": "agda-mode.toggle-irrelevant",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+c ctrl+x ctrl+i"
       }
     ],
     "commands": [

@@ -110,6 +110,11 @@ backends : StringMap.t Backend.t
 backends = (ghc true ∷ ghc false ∷ js ∷ html ∷ latex ∷ quicklatex ∷ [])
   |> foldr StringMap.empty λ m b → StringMap.insert (Backend.show b) b m
 
+toggle-cmds : StringMap.t AgdaCommand.t
+toggle-cmds = StringMap.empty
+  |> StringMap.insert "agda-mode.toggle-hidden" AgdaCommand.toggle-hidden
+  |> StringMap.insert "agda-mode.toggle-irrelevant" AgdaCommand.toggle-irrelevant
+
 -- TODO: Turn this into decoders?
 postulate GiveArgsObject : Set
 postulate get-pmLambda : GiveArgsObject → Bool
@@ -269,6 +274,11 @@ activate = try λ _ → do
     just intr ← (| AgdaInteraction.under-cursor-command model AgdaCommand.why-in-scope-goal
       <|> AgdaInteraction.input-prompt-command AgdaCommand.why-in-scope-toplevel |) where _ → pure tt
     AgdaProcess.send-command output-chan intr agda
+
+  forM (StringMap.entries toggle-cmds) λ (name , cmd) →
+    register-command name $ do
+      just intr ← AgdaInteraction.from-AgdaCommand cmd where _ → pure tt
+      AgdaProcess.send-command output-chan intr agda
 
   model ← IO.Ref.get model-ref
   stp ← SemanticTokensProvider.new

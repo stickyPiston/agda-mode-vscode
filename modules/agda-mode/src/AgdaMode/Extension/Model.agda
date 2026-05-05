@@ -147,6 +147,7 @@ module AgdaCommand where
     compute : ComputeMode.t → InteractionPoint.t → t
     module-contents-toplevel : Rewrite.t → String → t
     why-in-scope-toplevel : String → t
+    toggle-hidden toggle-irrelevant : t
 
   show-pos : Nat → TextDocument.t → String
   show-pos offset doc =
@@ -199,6 +200,8 @@ module AgdaCommand where
   show-list doc (compute mode ip) = "Cmd_compute" ∷ ComputeMode.show mode ∷ show-goal-command doc ip
   show-list doc (module-contents-toplevel r name) = "Cmd_show_module_contents_toplevel" ∷ Rewrite.show r ∷ ("\"" ++ name ++ "\"") ∷ []
   show-list doc (why-in-scope-toplevel term) = "Cmd_why_in_scope_toplevel" ∷ ("\"" ++ term ++ "\"") ∷ []
+  show-list doc toggle-hidden = "ToggleImplicitArgs" ∷ []
+  show-list doc toggle-irrelevant = "ToggleIrrelevantArgs" ∷ []
 
   show : TextDocument.t → t → String
   show = intercalate " " ∘₂ show-list
