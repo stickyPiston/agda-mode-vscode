@@ -290,22 +290,28 @@ activate = try λ _ → do
   Workspace.on-did-change-text-document λ e → agda .response-queue |> JobQueue.await-push (do
     model ← IO.Ref.get model-ref
     model .loaded-files !? TextDocument.file-name (e .document) |> λ where
-      (just (mkFile ips tokens)) → do
-        trace (map (Change.show ∘ Change.from-TextDocumentContentChangeEvent) (e .content-changes))
-        -- let changes = map Change.from-TextDocumentContentChangeEvent (e .content-changes)
+      (just (mkFile ips tokens)) →
+        -- The changes this handler receives are not yet sorted and shifted, so we need to do that ourselves
+        -- to be able to compare changes to exisiting interaction points locations.
         let changes = e .content-changes
               |> map Change.from-TextDocumentContentChangeEvent
               |> sort-on (λ change → change .range .start)
               |> foldl ([] , Int.pos 0) (λ (res , Δ) change → (res List.++ [ Change.shift Δ change ]) , (Δ Int.+ (change .by ⊝ change .range .length)))
-              |> Σ.fst
-        let overwritten-ips , affected-ips = partition (λ ip → List.any (λ change → OffsetRange.equals? (Change.new-range change) (ip .range)) changes) ips
-        let new-tokens = changes |> foldl tokens handle-tokens-change
-        let new-ips = changes |> foldl affected-ips handle-ips-change |> append overwritten-ips
-        trace (map InteractionPoint.show ips)
-        trace (map Change.show changes)
-        trace (map InteractionPoint.show new-ips)
-        trace (map (OffsetRange.to-vsc-range (e .document) ∘ range) new-ips)
-        trace "----------------------------------------------------"
+              |> Σ.fst in
+        let new-tokens = changes |> foldl tokens handle-tokens-change in
+
+        -- If one of the changes involved the insertion of a newly dug goal, then we need to do some extra work,
+        -- Otherwise, we take a shortcut to keep the processing time on each edit minimal.
+        let new-ips =
+              if List.any (λ change → change .text String.== "{!  !}") (e .content-changes) then (
+                -- We partition the list of interaction points into
+                -- * a list of ips that have been dug in these changes, i.e. changes that fall exactly over an
+                --   interaction point in the cache;
+                -- * a list of ips that need to be shifted as regular.
+                let overwritten-ips , affected-ips = partition (λ ip → List.any (λ change → OffsetRange.equals? (Change.new-range change) (ip .range)) changes) ips in
+                changes |> foldl affected-ips handle-ips-change |> append overwritten-ips
+              ) else (changes |> foldl ips handle-ips-change) in
+
         IO.Ref.set model-ref record model
           { loaded-files = model .loaded-files [ TextDocument.file-name (e .document) ]:= mkFile new-ips new-tokens }
       nothing → pure tt
