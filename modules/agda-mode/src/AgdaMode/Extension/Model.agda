@@ -46,6 +46,9 @@ module InteractionPoint where
   show (mkInteractionPoint id range) =
     "mkInteractionPoint " ++ Nat.show id ++ " " ++ "(" ++ OffsetRange.show range ++ ")"
 
+  equals? : t → t → Bool
+  equals? a b = OffsetRange.equals? (a .range) (b .range) ∧ a .id Nat.== b .id
+
 open InteractionPoint using (mkInteractionPoint ; id ; range) public
 
 record File : Set where

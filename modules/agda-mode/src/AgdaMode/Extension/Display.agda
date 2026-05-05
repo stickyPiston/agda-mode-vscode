@@ -2,7 +2,7 @@ module AgdaMode.Extension.Display where
 
 open import Data.String hiding (show)
 open import Data.Nat hiding (show ; _==_) ; import Data.Nat as Nat
-open import Data.Int hiding (pos)
+open import Data.Int hiding (pos ; _+_)
 open import Data.IO
 import Data.IO as IO
 open import Data.List hiding (any) renaming (_++_ to _++ˡ_)
@@ -307,7 +307,7 @@ display-info-decoder = do
       "IntroNotFound" → succeed intro-not-found
       _ → ⊘
 
-_when'_ : A → 𝔹 → List A
+_when'_ : A → Bool → List A
 a when' true = [ a ]
 a when' false = []
 
@@ -356,7 +356,7 @@ handle-display-info model display-info = do
 
 record Status : Set where
   constructor mkStatus
-  field checked show-implicit show-irrelevant : 𝔹
+  field checked show-implicit show-irrelevant : Bool
 open Status
 
 show-status : Status → String
@@ -434,22 +434,47 @@ handle-jump-to-error model jump-to-error = do
     }
   pure model
 
+expand-interaction-point : List InteractionPoint.t × Nat → InteractionPoint.t → List InteractionPoint.t × Nat
+expand-interaction-point (ac , Δ) ip =
+  if ip .range .length > 1 then
+    ac List.++ [ ip ] , Δ
+  else
+    ac List.++ [ record ip { range = record (ip .range) { start = ip .range .start + Δ ; length = 6 } } ] , Δ + 5
+
+merge-ip : List InteractionPoint.t → InteractionPoint.t → InteractionPoint.t
+merge-ip old-ips ip = (ip .range .length , find (λ expanded-ip → OffsetRange.contains? (expanded-ip .range) (ip .range .start)) old-ips) |> λ where
+  (1 , just old-ip) → old-ip
+  (_ , _) → ip
+
 handle-interaction-points : Model → List InteractionPoint.t → IO Model
 handle-interaction-points model ips = TextEditor.active-editor >>= maybe (pure model) λ e → do
   doc ← TextEditor.document e
   let open TraversableM {{ ... }}
-  new-ips ← forM ips λ ip → if ip .range .length > 1
-    then pure ip
-    else do
-      TextEditor.edit [ Edit.replace (OffsetRange.to-vsc-range doc (ip .range)) "{!  !}" ] e
-      pure record ip { range = record (ip .range) { length = 6 } }
 
+  -- Agda can respond with 0-wide interaction points, but in my experience these are
+  -- almost always wrong, so we ignore them.
+  let ips = ips |> filter (λ ip → ip .range .length > 0)
+  just (mkFile old-ips _) ← pure (model .loaded-files !? TextDocument.file-name doc) where _ → pure model
+  trace (map InteractionPoint.show ips)
+  let ips = ips |> map (merge-ip old-ips)
+  trace (map InteractionPoint.show ips)
+  trace "----------------------------------------------------"
+  let expanded-ips = ips |> foldl ([] , 0) expand-interaction-point |> Σ.fst
+  let edits = ips |> map-Maybe λ ip → if ip .range .length ≤ 1
+        then just (Edit.replace (OffsetRange.to-vsc-range doc (ip .range)) "{!  !}")
+        else nothing
+
+  TextEditor.edit edits e
   TextDocument.save doc
 
-  model .loaded-files !? TextDocument.file-name doc
-    |> (λ where
-      (just file) → record file { interaction-points = new-ips }
-      nothing → mkFile new-ips [])
+  let x = model .loaded-files !? TextDocument.file-name doc
+        |> (λ where
+          (just file) → record file { interaction-points = expanded-ips }
+          nothing → mkFile expanded-ips [])
+
+  trace x
+
+  x
     |> model .loaded-files [ TextDocument.file-name doc ]:=_
     |> (λ files → record model { loaded-files = files })
     |> pure

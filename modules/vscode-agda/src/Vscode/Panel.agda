@@ -20,17 +20,17 @@ module ViewColumn where
     beside active one two three four five six seven eight nine : t
 
   encode : t → Int
-  encode beside = - + 2
-  encode active = - + 1
-  encode one = + 1
-  encode two = + 2
-  encode three = + 3
-  encode four = + 4
-  encode five = + 5
-  encode six = + 6
-  encode seven = + 7
-  encode eight = + 8
-  encode nine = + 9
+  encode beside = - pos 2
+  encode active = - pos 1
+  encode one = pos 1
+  encode two = pos 2
+  encode three = pos 3
+  encode four = pos 4
+  encode five = pos 5
+  encode six = pos 6
+  encode seven = pos 7
+  encode eight = pos 8
+  encode nine = pos 9
 
 module WebviewOptions where
   record t : Set where field

@@ -116,7 +116,7 @@ postulate sort : List A → List A
 
 postulate sort-on : (A → B) → List A → List A
 {-# COMPILE JS sort-on = a => A => b => B => f => as =>
-  as.toSorted((x, y) => f(x) - f(y)) #-}
+  as.toSorted((x, y) => Number(f(x)) - Number(f(y))) #-}
 
 snoc : A → List A → List A
 snoc x xs = xs ++ [ x ]
@@ -171,6 +171,9 @@ infix 5 _to_
 _to_ : ℕ → ℕ → List ℕ
 n to k = if k ≤ n then [] else n ∷ (suc n to k)
 {-# COMPILE JS _to_ = n => k => Array(Math.max(0, Number(k - n))).fill(null).map((_, i) => BigInt(i) + n) #-}
+
+map-with-index : (A → Nat → B) → List A → List B
+map-with-index f xs = zip-with f xs (0 to ∥ xs ∥)
 
 any : (A → Bool) → List A → Bool
 any p = foldr false λ b a → b ∨ p a

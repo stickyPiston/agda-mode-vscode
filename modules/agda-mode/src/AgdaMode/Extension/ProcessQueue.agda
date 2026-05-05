@@ -96,13 +96,15 @@ module AgdaProcess where
     -- Once we have a response string, we can parse it into JSON and run one of the many
     -- response decoders and handler on it. These will update the model mutable variable,
     -- which is safe since this handler will be executed as a job in the `JobQueue.t`.
-    handle-response-string : Ref.t Model → String → Ref.t Process.t → JobQueue.Job
-    handle-response-string model-ref response proc-ref = parse-json response |> λ where
+    handle-response-string : OutputChannel.t → Ref.t Model → String → Ref.t Process.t → JobQueue.Job
+    handle-response-string output-chan model-ref response proc-ref = parse-json response |> λ where
         -- TODO: We should probably log that Agda sent something we don't understand
         nothing → pure tt
         (just parsed-response) → do
           model ← Ref.get model-ref
-          new-model ← handle-agda-message (λ intr → Ref.get proc-ref >>= Process.write (AgdaInteraction.show intr)) model parsed-response or-else pure model
+          new-model ← handle-agda-message (λ intr → do
+            OutputChannel.trace ("Sending interaction to Agda: " ++ AgdaInteraction.show intr) output-chan
+            Ref.get proc-ref >>= Process.write (AgdaInteraction.show intr)) model parsed-response or-else pure model
           Ref.set model-ref new-model
 
     spawn-proc : OutputChannel.t → IO Process.t
@@ -127,7 +129,7 @@ module AgdaProcess where
           Ref.set stdout-buffer new-buffer
           tt <$ forM responses λ response → do
             OutputChannel.trace ("Received response from Agda: " ++ response) output-chan
-            res-queue |> JobQueue.push (handle-response-string model-ref response proc-ref)
+            res-queue |> JobQueue.push (handle-response-string output-chan model-ref response proc-ref)
 
     {-# TERMINATING #-}
     mutual

@@ -53,7 +53,7 @@
       {
         "command": "agda-mode.goal-context",
         "when": "editorLangId =~ /agda/ && !editor.hasSelection",
-        "key": "ctrl+c ctrl+,"
+        "key": "ctrl+c ctrl+e"
       },
       {
         "command": "agda-mode.goal-type",
@@ -63,7 +63,7 @@
       {
         "command": "agda-mode.goal-env",
         "when": "editorLangId =~ /agda/ && !editor.hasSelection",
-        "key": "ctrl+c ctrl+e"
+        "key": "ctrl+c ctrl+,"
       },
       {
         "command": "agda-mode.goal-context-infer",

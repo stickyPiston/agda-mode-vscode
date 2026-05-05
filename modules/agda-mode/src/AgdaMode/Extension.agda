@@ -9,9 +9,11 @@ import Data.String as String
 open import Data.Product
 open import Data.Bool
 open import Data.List
+import Data.List as List
 open import Function hiding (id)
 open import Data.Nat
-open import Data.Int hiding (pos)
+open import Data.Int hiding (pos ; _+_)
+import Data.Int as Int
 
 import Data.IO as IO
 open IO using (IO)
@@ -191,6 +193,10 @@ get-editor-from-document doc = do
   docs ← Window.visible-editors >>= mapM λ editor → (editor ,_) <$> TextEditor.document editor
   docs |> find (λ (e , d) → compare-doc doc d) |> fmap Σ.fst |> pure
 
+on-interaction-point? : List InteractionPoint.t → Change.t → Bool
+on-interaction-point? ips change = ips
+  |> List.any λ ip → OffsetRange.equals? (ip .range) (Change.new-range change)
+
 activate : IO ⊤
 activate = try λ _ → do
   output-chan ← OutputChannel.create "Agda Mode"
@@ -284,10 +290,22 @@ activate = try λ _ → do
   Workspace.on-did-change-text-document λ e → agda .response-queue |> JobQueue.await-push (do
     model ← IO.Ref.get model-ref
     model .loaded-files !? TextDocument.file-name (e .document) |> λ where
-      (just (mkFile ips tokens)) →
-        let changes = map Change.from-TextDocumentContentChangeEvent (e .content-changes) in
-        let new-tokens = changes |> foldr tokens handle-tokens-change in
-        let new-ips = changes |> foldr ips handle-ips-change in
+      (just (mkFile ips tokens)) → do
+        trace (map (Change.show ∘ Change.from-TextDocumentContentChangeEvent) (e .content-changes))
+        -- let changes = map Change.from-TextDocumentContentChangeEvent (e .content-changes)
+        let changes = e .content-changes
+              |> map Change.from-TextDocumentContentChangeEvent
+              |> sort-on (λ change → change .range .start)
+              |> foldl ([] , Int.pos 0) (λ (res , Δ) change → (res List.++ [ Change.shift Δ change ]) , (Δ Int.+ (change .by ⊝ change .range .length)))
+              |> Σ.fst
+        let overwritten-ips , affected-ips = partition (λ ip → List.any (λ change → OffsetRange.equals? (Change.new-range change) (ip .range)) changes) ips
+        let new-tokens = changes |> foldl tokens handle-tokens-change
+        let new-ips = changes |> foldl affected-ips handle-ips-change |> append overwritten-ips
+        trace (map InteractionPoint.show ips)
+        trace (map Change.show changes)
+        trace (map InteractionPoint.show new-ips)
+        trace (map (OffsetRange.to-vsc-range (e .document) ∘ range) new-ips)
+        trace "----------------------------------------------------"
         IO.Ref.set model-ref record model
           { loaded-files = model .loaded-files [ TextDocument.file-name (e .document) ]:= mkFile new-ips new-tokens }
       nothing → pure tt

@@ -2,9 +2,11 @@ module AgdaMode.Extension.Position where
 
 open import Data.Nat hiding (show)
 import Data.Nat as Nat
-open import Data.Int
+open import Data.Int hiding (_+_)
 open import Data.Bool
+open import Data.Maybe
 open import Data.String hiding (∥_∥ ; show ; _==_)
+import Data.String as String
 open import Data.List hiding (_++_)
 open import Function
 
@@ -33,6 +35,9 @@ module OffsetRange where
   show : t → String
   show (offset-range start length) = "offset-range " ++ Nat.show start ++ " " ++ Nat.show length
 
+  equals? : t → t → Bool
+  equals? (offset-range s₁ l₁) (offset-range s₂ l₂) = s₁ Nat.== s₂ ∧ l₁ Nat.== l₂
+
   open import Vscode.Common
 
   to-vsc-range : TextDocument.t → t → Range.t
@@ -53,6 +58,12 @@ module Change where
 
   show : t → String
   show (replace range with-length by) = "replace " ++ OffsetRange.show range ++ " with-length " ++ Nat.show by
+
+  new-range : t → OffsetRange.t
+  new-range (replace range with-length by) = offset-range (range .start) by
+
+  shift : Int → t → t
+  shift n change = record change { range = OffsetRange.shift n (change .range) } 
 
   influences? : OffsetRange.t → t → Bool
   influences? r₁ (replace r₂ with-length _) = r₂ .length |> λ where
