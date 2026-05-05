@@ -261,7 +261,7 @@ activate = try λ _ → do
   register-command "agda-mode.module-contents" $ do
     model ← IO.Ref.get model-ref
     just intr ← (| AgdaInteraction.under-cursor-command model (AgdaCommand.module-contents-goal as-is)
-      <|> AgdaInteraction.from-AgdaCommand (AgdaCommand.module-contents-toplevel as-is "") |) where _ → pure tt
+      <|> AgdaInteraction.input-prompt-command (AgdaCommand.module-contents-toplevel as-is) |) where _ → pure tt
     AgdaProcess.send-command output-chan intr agda
 
   register-command "agda-mode.why-in-scope" $ do

@@ -235,9 +235,8 @@ module AgdaInteraction where
   input-prompt-command cmd = do
     just e ← TextEditor.active-editor where _ → pure nothing
     doc ← TextEditor.document e
-    Window.show-input-box >>= λ where
-      (just input) → pure $ just (iotcm doc (cmd input))
-      nothing → pure nothing
+    input ← from-Maybe "" <$> Window.show-input-box
+    pure $ just (iotcm doc (cmd input))
     
 open AgdaInteraction using (iotcm ; file ; command) public
 

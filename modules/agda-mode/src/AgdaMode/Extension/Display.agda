@@ -358,7 +358,7 @@ show-display-info (goal-specific _ _) = ""
 show-display-info intro-not-found = "No introduction forms found."
 show-display-info (module-contents (mkModuleContents names contents)) =
   "Modules\n" ++ intercalate "\n" (map ("  " ++_) names) ++
-    "\nNames" ++ intercalate "\n" (map (λ (name , term) → "  " ++ name ++ " : " ++ term) contents)
+    "\nNames\n" ++ intercalate "\n" (map (λ (name , term) → "  " ++ name ++ " : " ++ term) contents)
 show-display-info (why-in-scope message) = message
 
 open import Agda.Builtin.Equality
