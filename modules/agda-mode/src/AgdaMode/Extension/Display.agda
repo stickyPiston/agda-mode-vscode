@@ -578,7 +578,7 @@ handle-make-case send-command model (mkMakeCase clauses ip variant) = do
   -- Save the indentation of the line we are replacing, so that we can restore it later.
   let indentation = primStringFromList $ take-while primIsSpace (primStringToList $ TextLine.text line)
 
-  TextEditor.edit [ Edit.replace (TextLine.range line) (indentation ++ intercalate "\n" clauses) ] e 
+  TextEditor.edit [ Edit.replace (TextLine.range line) (intercalate "\n" $ map (indentation ++_) clauses) ] e 
   TextDocument.save doc
   
   -- We need to issue a reload because Agda sends interaction points that, for some reason,
