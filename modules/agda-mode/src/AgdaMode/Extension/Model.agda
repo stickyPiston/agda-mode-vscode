@@ -146,7 +146,7 @@ module AgdaCommand where
     compile-file : Backend.t → t
     compute-goal : ComputeMode.t → InteractionPoint.t → t
     compute-toplevel : ComputeMode.t → String → t
-    module-contents-toplevel search-about-toplevel : Rewrite.t → String → t
+    module-contents-toplevel search-about-toplevel infer-toplevel : Rewrite.t → String → t
     why-in-scope-toplevel : String → t
     toggle-hidden toggle-irrelevant : t
 
@@ -201,6 +201,7 @@ module AgdaCommand where
   show-list doc (compute-goal mode ip) = "Cmd_compute" ∷ ComputeMode.show mode ∷ show-goal-command doc ip
   show-list doc (compute-toplevel mode term) = "Cmd_compute_toplevel" ∷ ComputeMode.show mode ∷ ("\"" ++ term ++ "\"") ∷ []
   show-list doc (module-contents-toplevel r name) = "Cmd_show_module_contents_toplevel" ∷ Rewrite.show r ∷ ("\"" ++ name ++ "\"") ∷ []
+  show-list doc (infer-toplevel r term) = "Cmd_infer_toplevel" ∷ Rewrite.show r ∷ ("\"" ++ term ++ "\"") ∷ []
   show-list doc (search-about-toplevel r query) = "Cmd_search_about_toplevel" ∷ Rewrite.show r ∷ ("\"" ++ query ++ "\"") ∷ []
   show-list doc (why-in-scope-toplevel term) = "Cmd_why_in_scope_toplevel" ∷ ("\"" ++ term ++ "\"") ∷ []
   show-list doc toggle-hidden = "ToggleImplicitArgs" ∷ []
