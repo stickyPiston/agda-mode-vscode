@@ -434,6 +434,8 @@ handle-jump-to-error model jump-to-error = do
     }
   pure model
 
+-- TODO: The order of the interaction point list does not matter, so we might as well cons the ips instead of
+-- inefficiently snoc'ing them.
 expand-interaction-point : List InteractionPoint.t × Nat → InteractionPoint.t → List InteractionPoint.t × Nat
 expand-interaction-point (ac , Δ) ip =
   if ip .range .length > 1 then
@@ -441,24 +443,38 @@ expand-interaction-point (ac , Δ) ip =
   else
     ac List.++ [ record ip { range = record (ip .range) { start = ip .range .start + Δ ; length = 6 } } ] , Δ + 5
 
+-- This function only merges 1-wide interaction points with old interactions points. It should not occur that
+-- interaction overlap in any other way.
 merge-ip : List InteractionPoint.t → InteractionPoint.t → InteractionPoint.t
-merge-ip old-ips ip = (ip .range .length , find (λ expanded-ip → OffsetRange.contains? (expanded-ip .range) (ip .range .start)) old-ips) |> λ where
-  (1 , just old-ip) → old-ip
-  (_ , _) → ip
+merge-ip old-ips ip =
+  let old-ip = find (λ expanded-ip → OffsetRange.contains? (expanded-ip .range) (ip .range .start)) old-ips in
+  (ip .range .length , old-ip) |> λ where
+    (1 , just old-ip) → old-ip
+    (_ , _) → ip
 
 handle-interaction-points : Model → List InteractionPoint.t → IO Model
 handle-interaction-points model ips = TextEditor.active-editor >>= maybe (pure model) λ e → do
   doc ← TextEditor.document e
-  let open TraversableM {{ ... }}
-
-  -- Agda can respond with 0-wide interaction points, but in my experience these are
-  -- almost always wrong, so we ignore them.
-  let ips = ips |> filter (λ ip → ip .range .length > 0)
   just (mkFile old-ips _) ← pure (model .loaded-files !? TextDocument.file-name doc) where _ → pure model
-  trace (map InteractionPoint.show ips)
-  let ips = ips |> map (merge-ip old-ips)
-  trace (map InteractionPoint.show ips)
-  trace "----------------------------------------------------"
+
+  -- Agda can respond with 0-wide interaction points in give and refinement interactioans, but we cannot extract
+  -- any useful information from them (e.g. they have non-sensical and overlapping positions). Therefore, we just
+  -- ignore them and reload the file afterwards to get more relevant information about new goals.
+  let ips = ips
+        |> filter (λ ip → ip .range .length > 0)
+  
+  -- After a refinement, Agda may send 1-wide interaction points at places where originally already
+  -- expanded interaction points were. We try to merge the 1-wide goals with the previous goals to
+  -- make sure that the previous goals will not be broken by new hole digs introduced by these faultily-sized
+  -- goals.
+        |> map (merge-ip old-ips)
+
+  -- Dig the remaining 1-wide goals, this involves updating the goal cache in the model as well as
+  -- performing edits in the buffer. In case of multiple digs, the edits send the current positions
+  -- of the question marks and vscode shifts them internally. Whereas the goal cache requires that
+  -- newly dug holes are shifted to their correct position after the edits are performed. This is because
+  -- the change event handler will not shift edits to goals that fall exactly onto goals according to the cache,
+  -- while still shifting the tokens and goals that are not recently dug in the regular fashion.
   let expanded-ips = ips |> foldl ([] , 0) expand-interaction-point |> Σ.fst
   let edits = ips |> map-Maybe λ ip → if ip .range .length ≤ 1
         then just (Edit.replace (OffsetRange.to-vsc-range doc (ip .range)) "{!  !}")
@@ -467,14 +483,10 @@ handle-interaction-points model ips = TextEditor.active-editor >>= maybe (pure m
   TextEditor.edit edits e
   TextDocument.save doc
 
-  let x = model .loaded-files !? TextDocument.file-name doc
-        |> (λ where
-          (just file) → record file { interaction-points = expanded-ips }
-          nothing → mkFile expanded-ips [])
-
-  trace x
-
-  x
+  model .loaded-files !? TextDocument.file-name doc
+    |> (λ where
+      (just file) → record file { interaction-points = expanded-ips }
+      nothing → mkFile expanded-ips [])
     |> model .loaded-files [ TextDocument.file-name doc ]:=_
     |> (λ files → record model { loaded-files = files })
     |> pure
@@ -508,10 +520,6 @@ give-action-decoder : Decoder GiveAction
 give-action-decoder = do
   "GiveAction" ← required "kind" string where _ → ⊘
   mkGiveAction <$> required "giveResult" give-result-decoder <*> required "interactionPoint" interaction-point-decoder
-
-private 
-  postulate timeout : Nat → IO ⊤
-  {-# COMPILE JS timeout = n => () => new Promise((resolve) => setTimeout(() => resolve(), Number(n))) #-}
 
 handle-give-action : (AgdaInteraction.t → IO ⊤) → Model → GiveAction → IO Model
 handle-give-action send-command model give = TextEditor.active-editor >>= maybe (pure model) λ e → do
