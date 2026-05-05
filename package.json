@@ -195,6 +195,11 @@
         "command": "agda-mode.module-contents",
         "when": "editorLangId =~ /agda/ && !editor.hasSelection",
         "key": "ctrl+c ctrl+o"
+      },
+      {
+        "command": "agda-mode.why-in-scope",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+c ctrl+w"
       }
     ],
     "commands": [

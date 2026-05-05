@@ -141,10 +141,11 @@ module AgdaCommand where
       goal-type-context-check auto-goal module-contents-goal
         : Rewrite.t → InteractionPoint.t → t
     show-metas show-constraints : Rewrite.t → t
-    make-case : InteractionPoint.t → t
+    make-case why-in-scope-goal : InteractionPoint.t → t
     compile-file : Backend.t → t
     compute : ComputeMode.t → InteractionPoint.t → t
     module-contents-toplevel : Rewrite.t → String → t
+    why-in-scope-toplevel : String → t
 
   show-pos : Nat → TextDocument.t → String
   show-pos offset doc =
@@ -192,9 +193,11 @@ module AgdaCommand where
   show-list doc (show-constraints r) = "Cmd_constraints" ∷ Rewrite.show r ∷ []
   show-list doc (show-metas r) = "Cmd_metas" ∷ Rewrite.show r ∷ []
   show-list doc (make-case ip) = "Cmd_make_case" ∷ show-goal-command doc ip
+  show-list doc (why-in-scope-goal ip) = "Cmd_why_in_scope" ∷ show-goal-command doc ip
   show-list doc (compile-file backend) = "Cmd_compile" ∷ Backend.encode backend ∷ ("\"" ++ TextDocument.file-name doc ++ "\"") ∷ "[]" ∷ []
   show-list doc (compute mode ip) = "Cmd_compute" ∷ ComputeMode.show mode ∷ show-goal-command doc ip
   show-list doc (module-contents-toplevel r name) = "Cmd_show_module_contents_toplevel" ∷ Rewrite.show r ∷ ("\"" ++ name ++ "\"") ∷ []
+  show-list doc (why-in-scope-toplevel term) = "Cmd_show_module_contents_toplevel" ∷ ("\"" ++ term ++ "\"") ∷ []
 
   show : TextDocument.t → t → String
   show = intercalate " " ∘₂ show-list

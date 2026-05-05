@@ -247,7 +247,7 @@ data DisplayInfo : Set where
     (invisible-goals : List InvisibleGoal)
     (visible-goals : List Goal)
     (warnings : List String) → DisplayInfo
-  error : String → DisplayInfo
+  error why-in-scope : String → DisplayInfo
   context : Context → DisplayInfo
   -- goal-info : InteractionPoint.t → GoalInfo → DisplayInfo
   intro-not-found : DisplayInfo
@@ -325,6 +325,7 @@ display-info-decoder = do
         <*> required "interactionPoint" interaction-point-decoder
       "IntroNotFound" → succeed intro-not-found
       "ModuleContents" → (| module-contents ModuleContents.decoder |)
+      "WhyInScope" → (| why-in-scope (required "message" string) |)
       _ → ⊘
 
 _when'_ : A → Bool → List A
@@ -358,6 +359,7 @@ show-display-info intro-not-found = "No introduction forms found."
 show-display-info (module-contents (mkModuleContents names contents)) =
   "Modules\n" ++ intercalate "\n" (map ("  " ++_) names) ++
     "\nNames" ++ intercalate "\n" (map (λ (name , term) → "  " ++ name ++ " : " ++ term) contents)
+show-display-info (why-in-scope message) = message
 
 open import Agda.Builtin.Equality
 

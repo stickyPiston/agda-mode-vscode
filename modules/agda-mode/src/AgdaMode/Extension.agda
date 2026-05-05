@@ -264,6 +264,12 @@ activate = try λ _ → do
       <|> AgdaInteraction.from-AgdaCommand (AgdaCommand.module-contents-toplevel as-is "") |) where _ → pure tt
     AgdaProcess.send-command output-chan intr agda
 
+  register-command "agda-mode.why-in-scope" $ do
+    model ← IO.Ref.get model-ref
+    just intr ← (| AgdaInteraction.under-cursor-command model AgdaCommand.why-in-scope-goal
+      <|> AgdaInteraction.from-AgdaCommand (AgdaCommand.why-in-scope-toplevel "") |) where _ → pure tt
+    AgdaProcess.send-command output-chan intr agda
+
   model ← IO.Ref.get model-ref
   stp ← SemanticTokensProvider.new
     (just (EventEmitter.event $ model .tokens-request-emitter))
