@@ -253,6 +253,7 @@ data DisplayInfo : Set where
   intro-not-found : DisplayInfo
   goal-specific : GoalInfo.t → InteractionPoint.t → DisplayInfo
   module-contents : ModuleContents.t → DisplayInfo
+  search-about : String → List (String × String) → DisplayInfo
 
 error-decoder : Decoder String
 error-decoder = required "message" string
@@ -326,6 +327,9 @@ display-info-decoder = do
       "IntroNotFound" → succeed intro-not-found
       "ModuleContents" → (| module-contents ModuleContents.decoder |)
       "WhyInScope" → (| why-in-scope (required "message" string) |)
+      "SearchAbout" →
+        let results-decoder = (| required "name" string , required "term" string |) in
+        (| search-about (required "search" string) (required "results" (list results-decoder)) |)
       _ → ⊘
 
 _when'_ : A → Bool → List A
@@ -360,6 +364,9 @@ show-display-info (module-contents (mkModuleContents names contents)) =
   "Modules\n" ++ intercalate "\n" (map ("  " ++_) names) ++
     "\nNames\n" ++ intercalate "\n" (map (λ (name , term) → "  " ++ name ++ " : " ++ term) contents)
 show-display-info (why-in-scope message) = message
+show-display-info (search-about query results) =
+  let show-result (name , term) = "  " ++ name ++ " : " ++ term in
+  "Definitions about " ++ query ++ "\n" ++ intercalate "\n" (map show-result results)
 
 open import Agda.Builtin.Equality
 

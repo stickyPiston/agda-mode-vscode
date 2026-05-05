@@ -210,6 +210,11 @@
         "command": "agda-mode.toggle-irrelevant",
         "when": "editorLangId =~ /agda/ && !editor.hasSelection",
         "key": "ctrl+c ctrl+x ctrl+i"
+      },
+      {
+        "command": "agda-mode.search-about",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+c ctrl+z"
       }
     ],
     "commands": [

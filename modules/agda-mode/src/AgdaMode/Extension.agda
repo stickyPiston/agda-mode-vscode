@@ -280,6 +280,11 @@ activate = try λ _ → do
       just intr ← AgdaInteraction.from-AgdaCommand cmd where _ → pure tt
       AgdaProcess.send-command output-chan intr agda
 
+  register-command "agda-mode.search-about" $ do
+    model ← IO.Ref.get model-ref
+    just intr ← AgdaInteraction.input-prompt-command (AgdaCommand.search-about-toplevel as-is) where _ → pure tt
+    AgdaProcess.send-command output-chan intr agda
+
   model ← IO.Ref.get model-ref
   stp ← SemanticTokensProvider.new
     (just (EventEmitter.event $ model .tokens-request-emitter))
