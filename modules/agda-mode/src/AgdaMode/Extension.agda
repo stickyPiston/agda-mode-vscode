@@ -260,7 +260,9 @@ activate = try λ _ → do
   register-command-with-args "agda-mode.compute" λ o → do
     model ← IO.Ref.get model-ref
     just mode ← pure $ ComputeMode.decoder =<< (just (j-string $ get-compute-mode-string o)) where _ → pure tt
-    just intr ← AgdaInteraction.under-cursor-command model (AgdaCommand.compute mode) where _ → pure tt
+    just intr ← (AgdaInteraction.under-cursor-command model (AgdaCommand.compute-goal mode) >>= λ where
+      (just intr) → pure (just intr)
+      nothing → AgdaInteraction.input-prompt-command (AgdaCommand.compute-toplevel mode)) where _ → pure tt
     AgdaProcess.send-command output-chan intr agda
 
   register-command "agda-mode.module-contents" $ do

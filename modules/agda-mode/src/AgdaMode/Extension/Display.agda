@@ -247,7 +247,7 @@ data DisplayInfo : Set where
     (invisible-goals : List InvisibleGoal)
     (visible-goals : List Goal)
     (warnings : List String) → DisplayInfo
-  error why-in-scope : String → DisplayInfo
+  error why-in-scope normal-form : String → DisplayInfo
   context : Context → DisplayInfo
   -- goal-info : InteractionPoint.t → GoalInfo → DisplayInfo
   intro-not-found : DisplayInfo
@@ -330,6 +330,7 @@ display-info-decoder = do
       "SearchAbout" →
         let results-decoder = (| required "name" string , required "term" string |) in
         (| search-about (required "search" string) (required "results" (list results-decoder)) |)
+      "NormalForm" → (| normal-form (required "expr" string) |)
       _ → ⊘
 
 _when'_ : A → Bool → List A
@@ -367,6 +368,7 @@ show-display-info (why-in-scope message) = message
 show-display-info (search-about query results) =
   let show-result (name , term) = "  " ++ name ++ " : " ++ term in
   "Definitions about " ++ query ++ "\n" ++ intercalate "\n" (map show-result results)
+show-display-info (normal-form message) = message
 
 open import Agda.Builtin.Equality
 
