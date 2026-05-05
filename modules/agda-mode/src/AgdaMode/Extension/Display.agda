@@ -371,16 +371,21 @@ instance
     ; encode-decode-dual = λ { tt → refl }
     }
 
-new-panel : IO (Panel.t ⊤)
-new-panel = Panel.create
-  "agdaMode-buffer"
-  "*Agda information*"
-  (record { preserve-focus = true ; view-column = ViewColumn.three })
-  WebviewOptions.default
+new-panel : Ref.t Model → IO (Panel.t ⊤)
+new-panel model-ref = do
+  panel ← Panel.create
+    "agdaMode-buffer"
+    "*Agda information*"
+    (record { preserve-focus = true ; view-column = ViewColumn.three })
+    WebviewOptions.default
+  Panel.on-did-dispose (do
+    model-ref |> Ref.modify λ model → record model { panel = nothing }
+    pure tt) panel
+  pure panel
 
-handle-display-info : Model → DisplayInfo → IO Model
-handle-display-info model display-info = do
-  panel ← from-Maybe new-panel (pure <$> model .panel)
+handle-display-info : Ref.t Model → Model → DisplayInfo → IO Model
+handle-display-info model-ref model display-info = do
+  panel ← from-Maybe (new-panel model-ref) (pure <$> model .panel)
   Panel.set-html panel ("<pre>" ++ show-display-info display-info ++ "</pre>")
   pure record model { panel = just panel }
 
@@ -413,9 +418,9 @@ clear-running-info-decoder : Decoder ⊤
 clear-running-info-decoder = required "kind" string >>= λ where
   "ClearRunningInfo" → pure tt ; _ → ⊘
 
-handle-clear-running-info : Model → ⊤ → IO Model
-handle-clear-running-info model tt = do
-  panel ← from-Maybe new-panel (pure <$> model .panel)
+handle-clear-running-info : Ref.t Model → Model → ⊤ → IO Model
+handle-clear-running-info model-ref model tt = do
+  panel ← from-Maybe (new-panel model-ref) (pure <$> model .panel)
   Panel.set-html panel ""
   pure record model { panel = just panel ; running-info = "" }
 
@@ -431,9 +436,9 @@ running-info-decoder = do
   "RunningInfo" ← required "kind" string where _ → ⊘
   mkRunningInfo <$> required "debugLevel" nat <*> required "message" string
 
-handle-running-info : Model → RunningInfo → IO Model
-handle-running-info model info = do
-  panel ← from-Maybe new-panel (pure <$> model .panel)
+handle-running-info : Ref.t Model → Model → RunningInfo → IO Model
+handle-running-info model-ref model info = do
+  panel ← from-Maybe (new-panel model-ref) (pure <$> model .panel)
   -- TODO: Allow configuration of debug level
   let new-running-info = model .running-info ++ info .message ++ "\n"
   Panel.set-html panel $ "<pre>" ++ new-running-info ++ "</pre>"
@@ -628,14 +633,14 @@ handle-make-case send-command model (mkMakeCase clauses ip variant) = do
   model <$ send-command (iotcm doc AgdaCommand.load)
 
 -- TODO: Change this to have type Decoder (Model → IO Model)
-handle-agda-message : (AgdaInteraction.t → IO ⊤) → Model → Decoder (IO Model)
-handle-agda-message send-command model =
+handle-agda-message : (AgdaInteraction.t → IO ⊤) → Ref.t Model → Model → Decoder (IO Model)
+handle-agda-message send-command model-ref model =
   ⦇ (handle-highlighting-info model) highlighting-info-decoder
   | (handle-clear-highlighting model) clear-highlighting-decoder
-  | (handle-display-info model) display-info-decoder
+  | (handle-display-info model-ref model) display-info-decoder
   | (handle-status model) status-decoder
-  | (handle-clear-running-info model) clear-running-info-decoder
-  | (handle-running-info model) running-info-decoder
+  | (handle-clear-running-info model-ref model) clear-running-info-decoder
+  | (handle-running-info model-ref model) running-info-decoder
   | (handle-jump-to-error model) jump-to-error-decoder
   | (handle-interaction-points model) interaction-points-decoder
   | (handle-give-action send-command model) give-action-decoder

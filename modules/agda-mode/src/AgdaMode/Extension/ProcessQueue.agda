@@ -104,7 +104,7 @@ module AgdaProcess where
           model ← Ref.get model-ref
           new-model ← handle-agda-message (λ intr → do
             OutputChannel.trace ("Sending interaction to Agda: " ++ AgdaInteraction.show intr) output-chan
-            Ref.get proc-ref >>= Process.write (AgdaInteraction.show intr)) model parsed-response or-else pure model
+            Ref.get proc-ref >>= Process.write (AgdaInteraction.show intr)) model-ref model parsed-response or-else pure model
           Ref.set model-ref new-model
 
     spawn-proc : OutputChannel.t → IO Process.t

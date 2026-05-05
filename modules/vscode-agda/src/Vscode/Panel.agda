@@ -112,3 +112,8 @@ module Panel where
   on-message panel listener = Internal.on-message panel λ json → case decode json of λ where
     nothing → pure tt
     (just a) → listener a
+
+  postulate on-did-dispose : {A : Set} → IO ⊤ → t A → IO ⊤
+  {-# COMPILE JS on-did-dispose = A => action => panel => async () => {
+    panel.onDidDispose(() => action()); return a => a["tt"]()
+  } #-}
