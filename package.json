@@ -53,27 +53,92 @@
       {
         "command": "agda-mode.goal-context",
         "when": "editorLangId =~ /agda/ && !editor.hasSelection",
-        "key": "ctrl+c ctrl+e"
+        "key": "ctrl+c ctrl+e",
+        "args": { "rewrite": "AsIs" }
+      },
+      {
+        "command": "agda-mode.goal-context",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+c ctrl+e",
+        "args": { "rewrite": "HeadNormal" }
+      },
+      {
+        "command": "agda-mode.goal-context",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+u ctrl+c ctrl+e",
+        "args": { "rewrite": "Normalised" }
       },
       {
         "command": "agda-mode.goal-type",
         "when": "editorLangId =~ /agda/ && !editor.hasSelection",
-        "key": "ctrl+c ctrl+t"
+        "key": "ctrl+c ctrl+t",
+        "args": { "rewrite": "AsIs" }
+      },
+      {
+        "command": "agda-mode.goal-type",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+c ctrl+t",
+        "args": { "rewrite": "HeadNormal" }
+      },
+      {
+        "command": "agda-mode.goal-type",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+u ctrl+c ctrl+t",
+        "args": { "rewrite": "Normalised" }
       },
       {
         "command": "agda-mode.goal-env",
         "when": "editorLangId =~ /agda/ && !editor.hasSelection",
-        "key": "ctrl+c ctrl+,"
+        "key": "ctrl+c ctrl+,",
+        "args": { "rewrite": "AsIs" }
+      },
+      {
+        "command": "agda-mode.goal-env",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+c ctrl+,",
+        "args": { "rewrite": "HeadNormal" }
+      },
+      {
+        "command": "agda-mode.goal-env",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+u ctrl+c ctrl+,",
+        "args": { "rewrite": "Normalised" }
       },
       {
         "command": "agda-mode.goal-context-infer",
         "when": "editorLangId =~ /agda/ && !editor.hasSelection",
-        "key": "ctrl+c ctrl+."
+        "key": "ctrl+c ctrl+.",
+        "args": { "rewrite": "AsIs" }
+      },
+      {
+        "command": "agda-mode.goal-context-infer",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+c ctrl+.",
+        "args": { "rewrite": "HeadNormal" }
+      },
+      {
+        "command": "agda-mode.goal-context-infer",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+u ctrl+c ctrl+.",
+        "args": { "rewrite": "Normalised" }
       },
       {
         "command": "agda-mode.goal-context-elab",
         "when": "editorLangId =~ /agda/ && !editor.hasSelection",
-        "key": "ctrl+c ctrl+;"
+        "key": "ctrl+c ctrl+;",
+        "args": { "rewrite": "AsIs" }
+      },
+      {
+        "command": "agda-mode.goal-context-elab",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+c ctrl+;",
+        "args": { "rewrite": "HeadNormal" }
+      },
+      {
+        "command": "agda-mode.goal-context-elab",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+u ctrl+c ctrl+;",
+        "args": { "rewrite": "Normalised" }
       },
       {
         "command": "agda-mode.next-goal",
@@ -88,12 +153,38 @@
       {
         "command": "agda-mode.show-metas",
         "when": "editorLangId =~ /agda/ && !editor.hasSelection",
-        "key": "ctrl+c ctrl+shift+/"
+        "key": "ctrl+c ctrl+shift+/",
+        "args": { "rewrite": "AsIs" }
+      },
+      {
+        "command": "agda-mode.show-metas",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+c ctrl+shift+/",
+        "args": { "rewrite": "HeadNormal" }
+      },
+      {
+        "command": "agda-mode.show-metas",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+u ctrl+c ctrl+shift+/",
+        "args": { "rewrite": "Normalised" }
       },
       {
         "command": "agda-mode.show-constraints",
         "when": "editorLangId =~ /agda/ && !editor.hasSelection",
-        "key": "ctrl+c ctrl+="
+        "key": "ctrl+c ctrl+=",
+        "args": { "rewrite": "AsIs" }
+      },
+      {
+        "command": "agda-mode.show-constraints",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+c ctrl+=",
+        "args": { "rewrite": "HeadNormal" }
+      },
+      {
+        "command": "agda-mode.show-constraints",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+u ctrl+c ctrl+=",
+        "args": { "rewrite": "Normalised" }
       },
       {
         "command": "agda-mode.refine",
@@ -145,7 +236,20 @@
       {
         "command": "agda-mode.auto-goal",
         "when": "editorLangId =~ /agda/ && !editor.hasSelection",
-        "key": "ctrl+c ctrl+a"
+        "key": "ctrl+c ctrl+a",
+        "args": { "rewrite": "AsIs" }
+      },
+      {
+        "command": "agda-mode.auto-goal",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+c ctrl+a",
+        "args": { "rewrite": "HeadNormal" }
+      },
+      {
+        "command": "agda-mode.auto-goal",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+u ctrl+c ctrl+a",
+        "args": { "rewrite": "Normalised" }
       },
       {
         "command": "agda-mode.compile-file",
@@ -165,7 +269,20 @@
       {
         "command": "agda-mode.infer",
         "when": "editorLangId =~ /agda/ && !editor.hasSelection",
-        "key": "ctrl+c ctrl+d"
+        "key": "ctrl+c ctrl+d",
+        "args": { "rewrite": "AsIs" }
+      },
+      {
+        "command": "agda-mode.infer",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+c ctrl+d",
+        "args": { "rewrite": "HeadNormal" }
+      },
+      {
+        "command": "agda-mode.infer",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+u ctrl+c ctrl+d",
+        "args": { "rewrite": "Normalised" }
       },
       {
         "command": "agda-mode.compute",
@@ -194,7 +311,20 @@
       {
         "command": "agda-mode.module-contents",
         "when": "editorLangId =~ /agda/ && !editor.hasSelection",
-        "key": "ctrl+c ctrl+o"
+        "key": "ctrl+c ctrl+o",
+        "args": { "rewrite": "AsIs" }
+      },
+      {
+        "command": "agda-mode.module-contents",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+c ctrl+o",
+        "args": { "rewrite": "HeadNormal" }
+      },
+      {
+        "command": "agda-mode.module-contents",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+u ctrl+c ctrl+o",
+        "args": { "rewrite": "Normalised" }
       },
       {
         "command": "agda-mode.why-in-scope",
@@ -214,7 +344,20 @@
       {
         "command": "agda-mode.search-about",
         "when": "editorLangId =~ /agda/ && !editor.hasSelection",
-        "key": "ctrl+c ctrl+z"
+        "key": "ctrl+c ctrl+z",
+        "args": { "rewrite": "AsIs" }
+      },
+      {
+        "command": "agda-mode.search-about",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+c ctrl+z",
+        "args": { "rewrite": "HeadNormal" }
+      },
+      {
+        "command": "agda-mode.search-about",
+        "when": "editorLangId =~ /agda/ && !editor.hasSelection",
+        "key": "ctrl+u ctrl+u ctrl+c ctrl+z",
+        "args": { "rewrite": "Normalised" }
       }
     ],
     "commands": [

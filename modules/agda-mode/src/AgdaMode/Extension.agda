@@ -120,6 +120,8 @@ postulate get-pmLambda : GiveArgsObject → Bool
 {-# COMPILE JS get-pmLambda = o => o?.pmLambda ?? false #-}
 postulate get-compute-mode-string : GiveArgsObject → String
 {-# COMPILE JS get-compute-mode-string = o => o?.computeMode ?? "" #-}
+postulate get-rewrite-string : GiveArgsObject → String
+{-# COMPILE JS get-rewrite-string = o => o?.rewrite ?? "" #-}
 
 set-token-range : Token.t → OffsetRange.t → Token.t
 set-token-range t r = record t { range = r }
@@ -222,9 +224,10 @@ activate = try λ _ → do
     AgdaProcess.send-command output-chan intr agda
 
   forM (StringMap.entries goal-context-cmds) λ (name , cmd) →
-    register-command name $ do
+    register-command-with-args name λ o → do
       model ← IO.Ref.get model-ref
-      just intr ← AgdaInteraction.under-cursor-command model (cmd as-is) where _ → pure tt
+      just r ← pure $ Rewrite.decoder =<< (just (j-string $ get-rewrite-string o)) where _ → pure tt
+      just intr ← AgdaInteraction.under-cursor-command model (cmd r) where _ → pure tt
       AgdaProcess.send-command output-chan intr agda
 
   forM (StringMap.entries goal-give-cmds) λ (name , cmd) →
@@ -247,8 +250,9 @@ activate = try λ _ → do
     tt <$ jump-to-goal model λ o ips → find (λ ip → ip .range .start + 3 < o) (reverse ips) <|> (reverse ips !! 0)
 
   forM (StringMap.entries show-general-info-cmds) λ (name , cmd) →
-    register-command name $ do
-      just intr ← AgdaInteraction.from-AgdaCommand (cmd as-is) where _ → pure tt
+    register-command-with-args name λ o → do
+      just r ← pure $ Rewrite.decoder =<< (just (j-string $ get-rewrite-string o)) where _ → pure tt
+      just intr ← AgdaInteraction.from-AgdaCommand (cmd r) where _ → pure tt
       AgdaProcess.send-command output-chan intr agda
 
   register-command "agda-mode.compile-file" $ do
@@ -264,11 +268,12 @@ activate = try λ _ → do
       nothing → AgdaInteraction.input-prompt-command (AgdaCommand.compute-toplevel mode)) where _ → pure tt
     AgdaProcess.send-command output-chan intr agda
 
-  register-command "agda-mode.module-contents" $ do
+  register-command-with-args "agda-mode.module-contents" λ o → do
     model ← IO.Ref.get model-ref
-    just intr ← (AgdaInteraction.under-cursor-command model (AgdaCommand.module-contents-goal as-is) >>= λ where
+    just r ← pure $ Rewrite.decoder =<< (just (j-string $ get-rewrite-string o)) where _ → pure tt
+    just intr ← (AgdaInteraction.under-cursor-command model (AgdaCommand.module-contents-goal r) >>= λ where
       (just intr) → pure (just intr)
-      nothing → AgdaInteraction.input-prompt-command (AgdaCommand.module-contents-toplevel as-is)) where _ → pure tt
+      nothing → AgdaInteraction.input-prompt-command (AgdaCommand.module-contents-toplevel r)) where _ → pure tt
     AgdaProcess.send-command output-chan intr agda
 
   register-command "agda-mode.why-in-scope" $ do
@@ -283,16 +288,18 @@ activate = try λ _ → do
       just intr ← AgdaInteraction.from-AgdaCommand cmd where _ → pure tt
       AgdaProcess.send-command output-chan intr agda
 
-  register-command "agda-mode.search-about" $ do
+  register-command-with-args "agda-mode.search-about" λ o → do
     model ← IO.Ref.get model-ref
-    just intr ← AgdaInteraction.input-prompt-command (AgdaCommand.search-about-toplevel as-is) where _ → pure tt
+    just r ← pure $ Rewrite.decoder =<< (just (j-string $ get-rewrite-string o)) where _ → pure tt
+    just intr ← AgdaInteraction.input-prompt-command (AgdaCommand.search-about-toplevel r) where _ → pure tt
     AgdaProcess.send-command output-chan intr agda
 
-  register-command "agda-mode.infer" $ do
+  register-command-with-args "agda-mode.infer" λ o → do
     model ← IO.Ref.get model-ref
-    just intr ← (AgdaInteraction.under-cursor-command model (AgdaCommand.infer as-is) >>= λ where
+    just r ← pure $ Rewrite.decoder =<< (just (j-string $ get-rewrite-string o)) where _ → pure tt
+    just intr ← (AgdaInteraction.under-cursor-command model (AgdaCommand.infer r) >>= λ where
       (just intr) → pure (just intr)
-      nothing → AgdaInteraction.input-prompt-command (AgdaCommand.infer-toplevel as-is)) where _ → pure tt
+      nothing → AgdaInteraction.input-prompt-command (AgdaCommand.infer-toplevel r)) where _ → pure tt
     AgdaProcess.send-command output-chan intr agda
 
   model ← IO.Ref.get model-ref
